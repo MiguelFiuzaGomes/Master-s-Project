@@ -1,0 +1,23 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 85ac2aa16ab30d64cae9dc09a688c2f8, type: 3}
+  m_Name: Plains
+  m_EditorClassIdentifier: 
+  name: Plains
+  minimumHeight: 0.5
+  maximumHeight: 0.7
+  minimumTemperature: 0.5
+  maximumTemperature: 0.8
+  minimumHumidity: 0
+  maximumHumidity: 0.5
+  weightBias: 0.1
+  colour: {r: 0.18281008, g: 0.6320754, b: 0.14012992, a: 1}
