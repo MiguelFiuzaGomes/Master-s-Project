@@ -9,6 +9,7 @@ using UnityEditor;
 
 public class MapGenerator : MonoBehaviour
 {
+   // Enum for choosing what drawMode is used for testing
    public enum DrawMode
    {
       Noise,
@@ -18,19 +19,20 @@ public class MapGenerator : MonoBehaviour
       Humidity,
    }
 
+   // Enum for choosing which type of noise is used for creating terrain
    public enum NoiseType
    {
       Perlin,
       FBM,
       RidgeNoise,
-      Temperature,
-      Humidity,
+      DomainWarping,
    }
    
    [Header("Draw Mode")]
    public DrawMode drawMode;
    
    [Header("Map Settings")]
+   public NoiseType noiseType;
    public const int mapChunkSize = 241;
    public float heightMultiplier;
    public AnimationCurve heightCurve;
@@ -41,11 +43,9 @@ public class MapGenerator : MonoBehaviour
    public int tempAtSummit;
    
    [Header("Noise Settings")]
-   public NoiseType noiseType;
    public float noiseScale;
    public int octaves;
-   [Range(0, 1)]
-   public float persistence;
+   [Range(0, 1)] public float persistence;
    public float lacunarity;
    public int seed;
    public Vector2 offset;
@@ -79,18 +79,18 @@ public class MapGenerator : MonoBehaviour
          .ToList();
    }
 
+   // Testing purposes for in editor
    public void DrawMapInEditor()
    {
       MapData mapData= GenerateMapData(Vector2.zero);
-      
       MapDisplay mapDisplay = FindFirstObjectByType<MapDisplay>();
       
+      // Check which drawMode is selected and apply it to either a plane or a mesh
       if(drawMode == DrawMode.Noise)
          mapDisplay.DrawTexture(TextureGenerator.TextureFromHeightMap(mapData.heightMap));
       else if (drawMode == DrawMode.ColourMap)
          mapDisplay.DrawTexture(TextureGenerator.TextureFromColorMap(mapData.colourMap, mapChunkSize, mapChunkSize));
       else if(drawMode == DrawMode.DrawMesh)
-         //mapDisplay.DrawMesh(MeshGenerator.GenerateTerrainMesh(mapData.heightMap, heightMultiplier, heightCurve, editorPreviewLOD), TextureGenerator.TextureFromTemperatureMap(mapData.temperatureMap));
          mapDisplay.DrawMesh(MeshGenerator.GenerateTerrainMesh(mapData.heightMap, heightMultiplier, heightCurve, editorPreviewLOD), TextureGenerator.TextureFromColorMap(mapData.colourMap, mapChunkSize, mapChunkSize));
       else if(drawMode == DrawMode.Temperature)
          mapDisplay.DrawMesh(MeshGenerator.GenerateTerrainMesh(mapData.heightMap, heightMultiplier, heightCurve, editorPreviewLOD), TextureGenerator.TextureFromHeightMap(mapData.temperatureMap));
@@ -103,15 +103,31 @@ public class MapGenerator : MonoBehaviour
    {
       // Create new noise maps
       float[,] heightMap = new float[mapChunkSize, mapChunkSize];
+      float[,] ridgesMap = new float[mapChunkSize, mapChunkSize];
 
       // Populate heightMap based on the type of noise chosen
-      if (noiseType == NoiseType.Perlin || noiseType == NoiseType.Temperature)
+      if (noiseType == NoiseType.Perlin)
          heightMap = Noise.GenerateNoiseMap(mapChunkSize, mapChunkSize, seed, noiseScale, octaves, persistence, lacunarity, centre+offset, normalizeMode);
       else if (noiseType == NoiseType.FBM)
          heightMap = Noise.GenerateFBMNoiseMap(mapChunkSize, mapChunkSize , seed, noiseScale, octaves, persistence, lacunarity, centre + offset, normalizeMode);
       else if (noiseType == NoiseType.RidgeNoise)
          heightMap = Noise.GenerateRidgeNoiseMap(mapChunkSize, mapChunkSize, seed, noiseScale, octaves, persistence, lacunarity, centre + offset, normalizeMode);
+      else if (noiseType == NoiseType.DomainWarping)
+         heightMap = Noise.GenerateDomainWarpedNoiseMap(mapChunkSize, mapChunkSize, seed, noiseScale, warpScale, warpStrength, octaves, persistence, lacunarity, centre + offset, normalizeMode);
+
       
+      ridgesMap = Noise.GenerateRidgeNoiseMap(mapChunkSize, mapChunkSize, seed, noiseScale, octaves, persistence, lacunarity, centre + offset, normalizeMode);
+
+      for (int y = 0; y < heightMap.GetLength(0); y++)
+      {
+         for (int x = 0; x < heightMap.GetLength(1); x++)
+         {
+            ridgesMap[x, y] *= 0.25f;
+            heightMap[x, y] = Mathf.Lerp(heightMap[x, y], ridgesMap[x, y], 0.1f);
+         }
+      }
+      
+      // Populate temperature and humidity noise maps
       float[,] temperatureMap = Noise.GenerateTemperatureMap(mapChunkSize, mapChunkSize, seed + seed, noiseScale * 0.5f, octaves, persistence, lacunarity, centre + offset, normalizeMode, tempAtSea, tempAtSummit);
       float[,] humidityMap = Noise.GenerateDomainWarpedNoiseMap(mapChunkSize, mapChunkSize, seed, noiseScale, warpScale, warpStrength, octaves, persistence, lacunarity, centre + offset, normalizeMode);
       
@@ -138,35 +154,6 @@ public class MapGenerator : MonoBehaviour
             // }
             
             
-            //Trial with biome colours based on temperature
-            // foreach (SO_Biome biome in sortedBiomes)
-            // {
-            //    // Calculate normalized distance along each axis
-            //    float centerH = biome.minimumHeight + biome.heightSpread * 0.5f;
-            //    float centerT = biome.minimumTemperature + biome.temperatureSpread * 0.5f;
-            //    float dh = (currentHeight - centerH) / (biome.heightSpread * 0.5f);
-            //    float dt = (currentTemperature - centerT) / (biome.temperatureSpread * 0.5f);
-            //    
-            //    float dist2 = dh*dh + dt*dt;
-            //    if (dist2 < bestDist)
-            //    {
-            //       bestDist = dist2;
-            //       colour = biome.colour;
-            //    }
-            //    
-            //    // // Gaussian-like weight 
-            //    // float weight = 1f / (dh * dh + dt * dt + 0.0001f);
-            //    //
-            //    // if (weight > bestWeight)
-            //    // {
-            //    //    bestWeight = weight;
-            //    //    colour = biome.colour;
-            //    // }
-            //    
-            // }
-            // colourMap[y * mapChunkSize + x] = colour;
-
-
             // Default values
             float bestDist2 = float.MaxValue;
             Color bestColour = Color.magenta;
@@ -241,7 +228,6 @@ public class MapGenerator : MonoBehaviour
    void MapDataThread(Vector2 centre, Action<MapData> callback)
    { 
       MapData mapData = GenerateMapData(centre);
-
       
       // Locked so it can't be accessed simultaneously
       lock (mapDataThreadInfoQueue)
@@ -316,6 +302,7 @@ public class MapGenerator : MonoBehaviour
    }
 }
 
+#region structs
 [System.Serializable]
 public struct TerrainType
 {
@@ -331,21 +318,13 @@ public struct MapData
    public readonly float[,] temperatureMap;
    public readonly float[,] humidityMap;
 
+   // Original Code
    public MapData(float[,] heightMap, Color[] colourMap)
    {
       this.heightMap = heightMap;
       this.colourMap = colourMap;
       this.temperatureMap = new float[0, 0];
       this.temperatureMap[0,0] = 0;
-      this.humidityMap = new float[0, 0];
-      this.humidityMap[0,0] = 0;
-   }
-
-   public MapData(float[,] heightMap, Color[] colourMap, float[,] temperatureMap)
-   {
-      this.heightMap = heightMap;
-      this.colourMap = colourMap;
-      this.temperatureMap = temperatureMap;
       this.humidityMap = new float[0, 0];
       this.humidityMap[0,0] = 0;
    }
@@ -357,5 +336,5 @@ public struct MapData
       this.temperatureMap = temperatureMap;
       this.humidityMap = humidityMap;
    }
-   
 }
+#endregion

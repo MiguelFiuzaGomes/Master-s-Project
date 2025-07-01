@@ -1,5 +1,3 @@
-using System;
-using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -10,10 +8,13 @@ public class EndlessTerrain : MonoBehaviour
     public Transform viewer;
     public static Vector2 viewerPosition;
     private Vector2 oldViewerPosition;
-    private const float viewerPositionUpdateThreshold = 25f;
+    private const float viewerPositionUpdateThreshold = 125f;
     private const float squareViewerUpdateThreshold = viewerPositionUpdateThreshold * viewerPositionUpdateThreshold;
 
-    private const float scale = 5;
+    [Header("Scale")]
+    public float chunkScale = 5f;
+
+    public static float scale = 1f;
     
     // LODs
     [Header("LODs")]
@@ -43,6 +44,8 @@ public class EndlessTerrain : MonoBehaviour
     {
         mapGenerator = FindFirstObjectByType <MapGenerator>();
         
+        scale = chunkScale;
+        
         maxViewDistance = detailLevels[detailLevels.Length - 1].visibleDistanceThreshold;
         
         chunkSize = MapGenerator.mapChunkSize - 1;
@@ -50,6 +53,12 @@ public class EndlessTerrain : MonoBehaviour
         
         // First Update so meshes get drawn
         UpdateVisibleChunks();
+    }
+
+    public void OnValidate()
+    {
+        if (scale <= 0)
+            scale = 1f;
     }
 
     private void Update()

@@ -105,17 +105,23 @@ public static class Noise
       Vector2[] octaveOffsets = new Vector2[octaves];
       
       float maxPossibleHeight = 0;
+      float maxPossibleAmplitude = 0;
       float amplitude = 1;
       float frequency = 1;
-
+      
       for (int i = 0; i < octaves; i++)
       {
          float offsetX = prng.Next(-100000, 100000) + offset.x;
          float offsetY = prng.Next(-100000, 100000) - offset.y;
          octaveOffsets[i] = new Vector2(offsetX, offsetY);
 
+         // Used for normalization
          maxPossibleHeight += amplitude;
          amplitude *= persistence;
+         frequency *= lacunarity;
+         
+         // Used for normalization
+         maxPossibleAmplitude += amplitude;
       }
       
       float[,] noiseMap = new float[mapWidth, mapHeight];
@@ -146,15 +152,15 @@ public static class Noise
                float sampleY = (y-halfHeight + octaveOffsets[i].y) / scale * frequency;
                
                float perlinValue = Mathf.PerlinNoise(sampleX, sampleY) * frequency * amplitude;
-               max *= amplitude;
+               max += amplitude;
                
-               noiseHeight += max* Mathf.Abs(perlinValue);
+               noiseHeight += amplitude * perlinValue;
                
                amplitude *= persistence;
                frequency *= lacunarity;
             }
 
-            noiseHeight /= amplitude;
+            noiseHeight /= max;
             
             if(noiseHeight > maxLocalNoiseHeight)
                maxLocalNoiseHeight = noiseHeight;
@@ -176,8 +182,10 @@ public static class Noise
             }
             else
             {
-               float normalizedHeight = (noiseMap[x, y]) / (frequency * maxPossibleHeight) * 1.25f;
-               noiseMap[x, y] = Mathf.Clamp(normalizedHeight, 0, int.MaxValue);
+               float normalizedHeight = (noiseMap[x, y]) / (maxPossibleAmplitude * maxPossibleHeight * 1.25f);
+               //noiseMap[x, y] = Mathf.Clamp(normalizedHeight, 0, int.MaxValue);
+               noiseMap[x,y] *= noiseMap[x, y] * 2f; // increase contrast
+               noiseMap[x,y] = Mathf.Clamp01(noiseMap[x, y]); // Clamp back to range[0,1]
             }
          }
       }
@@ -264,7 +272,7 @@ public static class Noise
             else
             {
                // estimate the noise values
-               float normalizedHeight = (noiseMap[x,y] + 1) / (maxPossibleHeight);
+               float normalizedHeight = (noiseMap[x,y] * 2) / (maxPossibleHeight);
                noiseMap[x, y] = Mathf.Clamp(normalizedHeight, 0, int.MaxValue);
             }
          }
@@ -272,69 +280,91 @@ public static class Noise
       return noiseMap;
    }
 
+   // Domain Warping
    public static float[,] GenerateDomainWarpedNoiseMap(int mapWidth, int mapHeight, int seed, float scale, int warpScale, float warpStrength, int octaves, float persistence, float lacunarity, Vector2 offset, NormalizeMode normalizeMode)
    {
+      // Create final map
       float[,] warpedMap = new float[mapWidth, mapHeight];
       
-      float[,] warpX = GenerateNoiseMap(mapWidth, mapHeight, seed * seed, warpScale, octaves, persistence, lacunarity, offset, normalizeMode);
-      float[,] warpY = GenerateNoiseMap(mapWidth, mapHeight, seed + seed, warpScale, octaves, persistence, lacunarity, offset, normalizeMode);
+      // Create two different noise maps for mixing (domain warping based on Perlin Noise)
+      float[,] warpX = GenerateRidgeNoiseMap(mapWidth, mapHeight, seed * seed, warpScale, octaves, persistence, lacunarity, offset, normalizeMode);
+      float[,] warpY = GenerateFBMNoiseMap(mapWidth, mapHeight, seed + seed, warpScale, octaves, persistence, lacunarity, offset, normalizeMode);
 
+      // Get the center of the map (chunk)
       float halfWidth = mapWidth * 0.5f;
       float halfHeight = mapHeight * 0.5f;
       
+      // Make sure scale is never 0
       if(scale <= 0)
          scale = 0.001f;
       
+      // Values for maximum and minimum height to be used for normalization
       float maxH = float.MinValue;
       float minH = float.MaxValue;
-
+      
+      // Loop through the map
       for (int y = 0; y < mapHeight; y++)
       {
          for (int x = 0; x < mapWidth; x++)
          {
+            // 
             float dx = (warpX[x, y] * 2f - 1f) * warpStrength;
             float dy = (warpY[x, y] * 2f - 1f) * warpStrength;
 
+            // Define Amplitude, Frequency
             float amplitude = 1f, frequency = 1f;
+            
+            // Height at point in map
             float height = 0f;
 
+            // Loop through the octaves
             for (int i = 0; i < octaves; i++)
             {
+               // Get a sample at location [x,y]
                float sampleX = (x - halfWidth + dx + offset.x) / scale * frequency;
-               float sampleY = (y - halfWidth + dy + offset.y) / scale * frequency;
+               float sampleY = (y - halfHeight + dy + offset.y) / scale * frequency;
                
-               
+               // Generate perlin noise
                float perlinValue = Mathf.PerlinNoise(sampleX, sampleY) * 2 - 1;
+               
+               // Create a height based on the float value of Perlin and multiply it by amplitude
+               // Multiply Amplitude by Persistence (each loop amplitude becomes smaller and frequency becomes higher
                height += perlinValue * amplitude;
                amplitude *= persistence;
                frequency *= lacunarity;
             }
             
+            // Compare and set maximum and minimum heights
             if(height > maxH)
                maxH = height;
             if(height < minH)
                minH = height;
             
+            // Final value at position [x, y]
             warpedMap[x, y] = height;
          }
       }
 
+      // Loop again and lerp the warped value at position [x, y] between the maximum and minimum heights
+      // Normalize warpedMap
       for (int y = 0; y < mapHeight; y++)
       {
          for (int x = 0; x < mapWidth; x++)
          {
             warpedMap[x,y] = Mathf.InverseLerp(minH, maxH, warpedMap[x,y]);
          }
+         
       }
-
       
       return warpedMap;
    }
 
+   // Generate Temperature Map based on Perlin Noise
    public static float[,] GenerateTemperatureMap(int mapWidth, int mapHeight, int seed, float scale, int octaves, float persistence, float lacunarity, Vector2 offset, NormalizeMode normalizeMode, int tempAtSea, int tempAtSummit)
    {
       float [,] temperatureMap = new float[mapWidth, mapHeight];
 
+      // 
       float maxPossibleTemperature = 0;
       float amplitude = 1;
       float frequency = 1;
@@ -351,6 +381,7 @@ public static class Noise
 
          maxPossibleTemperature += amplitude;
          amplitude *= persistence; 
+         frequency *= lacunarity;
       }
       
       float maxLocalTemp = float.MinValue;
@@ -407,9 +438,6 @@ public static class Noise
             }
             else
             {
-               //float perlinValue = Mathf.PerlinNoise(sampleX, sampleY)  * tempAtSea - tempAtSummit; // Range[tempAtSummit, tempAtSea]
-
-               
                // estimate the noise values
                float normalizedTemp = (temperatureMap[x,y] + tempAtSummit) / (maxPossibleTemperature * tempAtSea);
                temperatureMap[x, y] = Mathf.Clamp(normalizedTemp, -1, 1);
