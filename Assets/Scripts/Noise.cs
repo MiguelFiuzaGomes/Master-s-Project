@@ -272,8 +272,8 @@ public static class Noise
             else
             {
                // estimate the noise values
-               float normalizedHeight = (noiseMap[x,y] * 2) / (maxPossibleHeight);
-               noiseMap[x, y] = Mathf.Clamp(normalizedHeight, 0, int.MaxValue);
+               float normalizedHeight = (noiseMap[x,y] * 2f) / (maxPossibleHeight);
+               noiseMap[x, y] = Mathf.Clamp01(normalizedHeight);
             }
          }
       }
@@ -287,9 +287,9 @@ public static class Noise
       float[,] warpedMap = new float[mapWidth, mapHeight];
       
       // Create two different noise maps for mixing (domain warping based on Perlin Noise)
-      float[,] warpX = GenerateRidgeNoiseMap(mapWidth, mapHeight, seed * seed, warpScale, octaves, persistence, lacunarity, offset, normalizeMode);
-      float[,] warpY = GenerateFBMNoiseMap(mapWidth, mapHeight, seed + seed, warpScale, octaves, persistence, lacunarity, offset, normalizeMode);
-
+      float[,] warpX = GenerateFBMNoiseMap(mapWidth, mapHeight, seed * seed, warpScale, octaves, persistence, lacunarity, offset, normalizeMode);
+      float[,] warpY = GenerateRidgeNoiseMap(mapWidth, mapHeight, seed + seed, warpScale, octaves, persistence, lacunarity, offset, normalizeMode);
+      
       // Get the center of the map (chunk)
       float halfWidth = mapWidth * 0.5f;
       float halfHeight = mapHeight * 0.5f;
@@ -307,6 +307,8 @@ public static class Noise
       {
          for (int x = 0; x < mapWidth; x++)
          {
+            
+            
             // 
             float dx = (warpX[x, y] * 2f - 1f) * warpStrength;
             float dy = (warpY[x, y] * 2f - 1f) * warpStrength;
@@ -322,6 +324,7 @@ public static class Noise
             {
                // Get a sample at location [x,y]
                float sampleX = (x - halfWidth + dx + offset.x) / scale * frequency;
+               sampleX = 1 - sampleX;
                float sampleY = (y - halfHeight + dy + offset.y) / scale * frequency;
                
                // Generate perlin noise
@@ -363,6 +366,8 @@ public static class Noise
    public static float[,] GenerateTemperatureMap(int mapWidth, int mapHeight, int seed, float scale, int octaves, float persistence, float lacunarity, Vector2 offset, NormalizeMode normalizeMode, int tempAtSea, int tempAtSummit)
    {
       float [,] temperatureMap = new float[mapWidth, mapHeight];
+      float warpStrength = 30;
+      int warpScale = 100;
 
       // 
       float maxPossibleTemperature = 0;
@@ -393,6 +398,8 @@ public static class Noise
       if (scale <= 0)
          scale = 0.001f;
       
+      float[,] warpNoise = GenerateDomainWarpedNoiseMap(mapWidth, mapHeight, seed, scale, warpScale, warpStrength, octaves, persistence, lacunarity, offset, normalizeMode);
+      
       // Generate noise values
       for (int y = 0; y < mapHeight; y++)
       {
@@ -403,13 +410,18 @@ public static class Noise
             
             float temperature = 0;
             
+            // Range[tempAtSummit, tempAtSea]
+            float dx = (warpNoise[x, y] * tempAtSea - tempAtSummit) * warpStrength * 0.25f;
+            float dy = (warpNoise[x, y] * tempAtSea - tempAtSummit) * warpStrength * 0.25f;
+            
             for (int i = 0; i < octaves; i++)
             {
                // Sampling the X and Y values
-               float sampleX = (x - halfWidth + octaveOffsets[i].x) / scale * frequency;
-               float sampleY = (y - halfHeight + octaveOffsets[i].y) / scale * frequency;
+               float sampleX = (x - halfWidth + dx + offset.x) / scale * frequency;
+               sampleX = 1 - sampleX;
+               float sampleY = (y - halfHeight + dy + offset.y) / scale * frequency;
 
-               float perlinValue = Mathf.PerlinNoise(sampleX, sampleY)  * tempAtSea - tempAtSummit; // Range[tempAtSummit, tempAtSea]
+               float perlinValue = Mathf.PerlinNoise(sampleX, sampleY)  * tempAtSea - tempAtSummit; 
                temperature += perlinValue * amplitude;
                
                amplitude *= persistence;
@@ -431,17 +443,8 @@ public static class Noise
       {
          for (int x = 0; x < mapWidth; x++)
          {
-            if (normalizeMode == NormalizeMode.Local)
-            {
-               //temperatureMap[x,y] = Mathf.InverseLerp(tempAtSummit, tempAtSea, temperatureMap[x,y]);
-               temperatureMap[x,y] = Mathf.InverseLerp(minLocalTemp, maxLocalTemp, temperatureMap[x,y]);
-            }
-            else
-            {
-               // estimate the noise values
-               float normalizedTemp = (temperatureMap[x,y] + tempAtSummit) / (maxPossibleTemperature * tempAtSea);
-               temperatureMap[x, y] = Mathf.Clamp(normalizedTemp, -1, 1);
-            }
+            //temperatureMap[x,y] = Mathf.InverseLerp(tempAtSummit, tempAtSea, temperatureMap[x,y]);
+            temperatureMap[x,y] = Mathf.InverseLerp(minLocalTemp, maxLocalTemp, temperatureMap[x,y]);
          }
       }
       

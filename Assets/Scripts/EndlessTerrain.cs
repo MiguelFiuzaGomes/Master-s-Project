@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Unity.VisualScripting;
 using UnityEngine;
 
 public class EndlessTerrain : MonoBehaviour
@@ -133,6 +134,7 @@ public class EndlessTerrain : MonoBehaviour
         {
             this.detailLevels = detailLevels;
             
+            
             position = coord*size;
             bounds = new Bounds(position, Vector2.one * size);
             
@@ -147,7 +149,10 @@ public class EndlessTerrain : MonoBehaviour
             meshObject.transform.position = positionV3 * scale;
             meshObject.transform.parent = parent;
             meshObject.transform.localScale = Vector3.one * scale;
+            
+            
 
+            // Create the LOD meshes
             lodMeshes = new LODMesh[detailLevels.Length];
             for (int i = 0; i < detailLevels.Length; i++)
             {
