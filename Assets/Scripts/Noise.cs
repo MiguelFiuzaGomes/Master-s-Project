@@ -419,8 +419,17 @@ public static class Noise
          }
       }
       
-
       return temperatureMap;
+   }
+
+   public static float[,] GenerateVoronoiNoiseMap(int mapWidth, int mapHeight)
+   {
+      float[,] voronoiMap = new float[mapWidth, mapHeight];
+
+      int gridSize = 10;
+      
+      
+      return voronoiMap;
    }
    
 }
