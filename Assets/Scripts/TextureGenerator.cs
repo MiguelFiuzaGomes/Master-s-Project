@@ -61,17 +61,34 @@ public static class TextureGenerator
         }
     }
 
-    public static Texture2D TextureFromTemperatureMap(float[,] temperatureMap)
+    public static Texture2D TextureFromTemperature(float[,] heightMap)
     {
-        int width = temperatureMap.GetLength(0);
-        int height = temperatureMap.GetLength(1);
+        int width = heightMap.GetLength(0);
+        int height = heightMap.GetLength(1);
+        
         Color[] colourMap = new Color[width * height];
-
         for (int y = 0; y < height; y++)
         {
             for (int x = 0; x < width; x++)
             {
-                colourMap[y * width + x] = Color.Lerp(Color.blue, Color.red, temperatureMap[x, y]); 
+                colourMap[y * width + x] = Color.Lerp(Color.blue, Color.red, heightMap[x, y]); 
+            }
+        }
+
+        return TextureFromColorMap(colourMap, width, height);
+    }
+    
+    public static Texture2D TextureFromHumidity(float[,] heightMap)
+    {
+        int width = heightMap.GetLength(0);
+        int height = heightMap.GetLength(1);
+        
+        Color[] colourMap = new Color[width * height];
+        for (int y = 0; y < height; y++)
+        {
+            for (int x = 0; x < width; x++)
+            {
+                colourMap[y * width + x] = Color.Lerp(Color.cyan, Color.blue, heightMap[x, y]); 
             }
         }
 
