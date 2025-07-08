@@ -28,28 +28,39 @@ public class MapGenerator : MonoBehaviour
       RidgeNoise,
       DomainWarping,
    }
+
+   [Header("Testing")] 
+   public GameObject plane;
+   public GameObject mesh;
    
    [Header("Draw Mode")]
    public DrawMode drawMode;
    
    [Header("Map Settings")]
-   public NoiseType heightNoiseType;
-   public NoiseType temperatureNoiseType;
-   public NoiseType humidityNoiseType;
    public const int mapChunkSize = 241;
-   public float heightMultiplier;
-   public AnimationCurve heightCurve;
    public int editorPreviewLOD;
+   public float drawHeightMultiplier;
+   public Noise.NormalizeMode normalizeMode;
    
-   [Header("Seeds")]
+   [Header("Height Map Settings")]
+   public NoiseType heightNoiseType;
    public int heightSeed;
-   public int temperatureSeed;
-   public int humiditySeed;
-
+   [Range(0,1)]public float heightWeight;
+   public AnimationCurve heightCurve;
    
-   [Header("Temperature Settings")]
+   [Header("Temperature Map Settings")]
+   public int temperatureSeed;
+   public NoiseType temperatureNoiseType;
+   public AnimationCurve temperatureCurve;
+   [Range(0,1)]public float temperatureWeight;
    public int tempAtSea;
    public int tempAtSummit;
+   
+   [Header("Humidity Map Settings")]
+   public int humiditySeed;
+   public NoiseType humidityNoiseType;
+   [Range(0,1)]public float humidityWeight;
+   public AnimationCurve humidityCurve;
    
    [Header("Noise Settings")]
    public float noiseScale;
@@ -62,10 +73,9 @@ public class MapGenerator : MonoBehaviour
    public int warpScale;
    public float warpStrength;
    
-   public Noise.NormalizeMode normalizeMode;
    
-   [Header("Terrain Types")]
-   public TerrainType[] regions;
+   //[Header("Terrain Types")]
+   //public TerrainType[] regions;
 
    [Header("Biomes")]
    public SO_Biome[] biomes;
@@ -99,11 +109,11 @@ public class MapGenerator : MonoBehaviour
       else if (drawMode == DrawMode.ColourMap)
          mapDisplay.DrawTexture(TextureGenerator.TextureFromColorMap(mapData.colourMap, mapChunkSize, mapChunkSize));
       else if(drawMode == DrawMode.DrawMesh)
-         mapDisplay.DrawMesh(MeshGenerator.GenerateTerrainMesh(mapData.heightMap, heightMultiplier, heightCurve, editorPreviewLOD), TextureGenerator.TextureFromColorMap(mapData.colourMap, mapChunkSize, mapChunkSize));
+         mapDisplay.DrawMesh(MeshGenerator.GenerateTerrainMesh(mapData.heightMap, drawHeightMultiplier, heightCurve, editorPreviewLOD), TextureGenerator.TextureFromColorMap(mapData.colourMap, mapChunkSize, mapChunkSize));
       else if(drawMode == DrawMode.Temperature)
-         mapDisplay.DrawMesh(MeshGenerator.GenerateTerrainMesh(mapData.heightMap, heightMultiplier, heightCurve, editorPreviewLOD), TextureGenerator.TextureFromTemperature(mapData.temperatureMap));
+         mapDisplay.DrawMesh(MeshGenerator.GenerateTerrainMesh(mapData.heightMap, drawHeightMultiplier, heightCurve, editorPreviewLOD), TextureGenerator.TextureFromTemperature(mapData.temperatureMap));
       else if(drawMode == DrawMode.Humidity)
-         mapDisplay.DrawMesh(MeshGenerator.GenerateTerrainMesh(mapData.heightMap, heightMultiplier, heightCurve, editorPreviewLOD), TextureGenerator.TextureFromHumidity(mapData.humidityMap));
+         mapDisplay.DrawMesh(MeshGenerator.GenerateTerrainMesh(mapData.heightMap, drawHeightMultiplier, heightCurve, editorPreviewLOD), TextureGenerator.TextureFromHumidity(mapData.humidityMap));
    }
    
 
@@ -134,6 +144,7 @@ public class MapGenerator : MonoBehaviour
             heightMap = Noise.GeneratePerlinNoiseMap(mapChunkSize, mapChunkSize, heightSeed, noiseScale, centre+offset, normalizeMode);
             break;
       }
+      
       switch (temperatureNoiseType)
       {
          case NoiseType.Perlin:
@@ -152,6 +163,7 @@ public class MapGenerator : MonoBehaviour
             temperatureMap = Noise.GeneratePerlinNoiseMap(mapChunkSize, mapChunkSize, temperatureSeed, noiseScale, centre+offset, normalizeMode);
             break;
       }
+      
       switch (humidityNoiseType)
       {
          case NoiseType.Perlin:
@@ -215,12 +227,13 @@ public class MapGenerator : MonoBehaviour
 
             foreach (SO_Biome biome in sortedBiomes)
             {
-               float d2 =  Dist2ToRange(currentHumidity, biome.minimumHumidity, biome.maximumHumidity); // sample humidity
-               d2 += Dist2ToRange(currentTemperature, biome.minimumTemperature, biome.maximumTemperature); // sample temperature
+               float d2 = Dist2ToRange(currentHumidity, biome.minimumHumidity, biome.maximumHumidity) + humidityWeight;
+               d2 *= humidityCurve.Evaluate(d2); // sample humidity
+               d2 += Dist2ToRange(currentTemperature, biome.minimumTemperature, biome.maximumTemperature) * temperatureWeight + temperatureCurve.Evaluate(d2); // sample temperature
                
                // sample height with a multiplier as the height is the most decisive factor
                // without this we could get high biomes spawning in low areas
-               d2 += Dist2ToRange(currenHeight, biome.minimumHeight, biome.maximumHeight) * 5f; 
+               d2 += Dist2ToRange(currenHeight, biome.minimumHeight, biome.maximumHeight) * heightWeight + heightCurve.Evaluate(d2); 
                
                // remove the bias for each biome
                d2 -= biome.weightBias;
@@ -298,7 +311,7 @@ public class MapGenerator : MonoBehaviour
    // Gets MapData and adds the callback to the queue
    void MeshDataThread(MapData mapData, int lod, Action<MeshData> callback)
    { 
-      MeshData meshData = MeshGenerator.GenerateTerrainMesh(mapData.heightMap, heightMultiplier, heightCurve, lod);
+      MeshData meshData = MeshGenerator.GenerateTerrainMesh(mapData.heightMap, drawHeightMultiplier, heightCurve, lod);
       
       // Locked so it can't be accessed simultaneously
       lock (meshDataThreadInfoQueue)
@@ -316,14 +329,35 @@ public class MapGenerator : MonoBehaviour
       // sanity‐clamp your noise params
       if (lacunarity < 1)
          lacunarity = 1;
-      if (octaves < 0)    
-         octaves   = 0;
-      
+      if (octaves < 0)
+         octaves = 0;
+
       // Organize
       sortedBiomes = biomes
          .OrderBy(b => b.minimumHeight)
          .ThenBy(b => b.minimumTemperature)
          .ToList();
+
+      if (!Application.isPlaying)
+      {
+         if (drawMode == DrawMode.Noise || drawMode == DrawMode.ColourMap)
+         {
+            plane.SetActive(true);
+            mesh.SetActive(false);
+         }
+         else
+         {
+            plane.SetActive(false);
+            mesh.SetActive(true);
+         }
+      }
+      else
+      {
+         drawHeightMultiplier *= 0.1f;
+         
+         plane.SetActive(false);
+         mesh.SetActive(false);
+      }
    }
 #endif
    
