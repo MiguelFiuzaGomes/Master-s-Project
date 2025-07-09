@@ -18,6 +18,7 @@ public class MapGenerator : MonoBehaviour
       DrawMesh,
       Temperature,
       Humidity,
+      Voronoi,
    }
 
    // Enum for choosing which type of noise is used for creating terrain
@@ -27,6 +28,7 @@ public class MapGenerator : MonoBehaviour
       FBM,
       RidgeNoise,
       DomainWarping,
+      Voronoi,
    }
 
    [Header("Testing")] 
@@ -41,6 +43,7 @@ public class MapGenerator : MonoBehaviour
    public int editorPreviewLOD;
    public float drawHeightMultiplier;
    public Noise.NormalizeMode normalizeMode;
+   [Range(0,1)]public float ridgesIntensity;
    
    [Header("Height Map Settings")]
    public NoiseType heightNoiseType;
@@ -73,6 +76,13 @@ public class MapGenerator : MonoBehaviour
    public int warpScale;
    public float warpStrength;
    
+   [Header("Voronoi Settings")]
+   public int siteCount;
+   public int gridSize;
+
+   private Vector2Int[,] sites;
+   
+   
    
    //[Header("Terrain Types")]
    //public TerrainType[] regions;
@@ -100,22 +110,23 @@ public class MapGenerator : MonoBehaviour
    // Testing purposes for in editor
    public void DrawMapInEditor()
    {
-      MapData mapData= GenerateMapData(Vector2.zero);
+      MapData mapData = GenerateMapData(Vector2.zero);
       MapDisplay mapDisplay = FindFirstObjectByType<MapDisplay>();
-      
+
       // Check which drawMode is selected and apply it to either a plane or a mesh
-      if(drawMode == DrawMode.Noise)
+      if (drawMode == DrawMode.Noise)
          mapDisplay.DrawTexture(TextureGenerator.TextureFromHeightMap(mapData.heightMap));
       else if (drawMode == DrawMode.ColourMap)
          mapDisplay.DrawTexture(TextureGenerator.TextureFromColorMap(mapData.colourMap, mapChunkSize, mapChunkSize));
-      else if(drawMode == DrawMode.DrawMesh)
+      else if (drawMode == DrawMode.DrawMesh)
          mapDisplay.DrawMesh(MeshGenerator.GenerateTerrainMesh(mapData.heightMap, drawHeightMultiplier, heightCurve, editorPreviewLOD), TextureGenerator.TextureFromColorMap(mapData.colourMap, mapChunkSize, mapChunkSize));
-      else if(drawMode == DrawMode.Temperature)
+      else if (drawMode == DrawMode.Temperature)
          mapDisplay.DrawMesh(MeshGenerator.GenerateTerrainMesh(mapData.heightMap, drawHeightMultiplier, heightCurve, editorPreviewLOD), TextureGenerator.TextureFromTemperature(mapData.temperatureMap));
-      else if(drawMode == DrawMode.Humidity)
+      else if (drawMode == DrawMode.Humidity)
          mapDisplay.DrawMesh(MeshGenerator.GenerateTerrainMesh(mapData.heightMap, drawHeightMultiplier, heightCurve, editorPreviewLOD), TextureGenerator.TextureFromHumidity(mapData.humidityMap));
+      else if(drawMode == DrawMode.Voronoi)
+       mapDisplay.DrawMesh(MeshGenerator.GenerateTerrainMesh(mapData.heightMap, drawHeightMultiplier, heightCurve, editorPreviewLOD),TextureGenerator.TextureFromVoronoi(mapData.heightMap, mapChunkSize, sites));
    }
-   
 
    private MapData GenerateMapData(Vector2 centre)
    {
@@ -124,6 +135,7 @@ public class MapGenerator : MonoBehaviour
       float[,] temperatureMap = new float[mapChunkSize, mapChunkSize];
       float[,] humidityMap = new float[mapChunkSize, mapChunkSize];
       float[,] ridgesMap = new float[mapChunkSize, mapChunkSize];
+      float[,] voronoiMap = new float[mapChunkSize, mapChunkSize];
 
       // Populate heightMap based on the type of noise chosen
       switch (heightNoiseType)
@@ -139,6 +151,9 @@ public class MapGenerator : MonoBehaviour
             break;
          case NoiseType.DomainWarping:
             heightMap = Noise.GenerateDomainWarpedNoiseMap(mapChunkSize, mapChunkSize, heightSeed, noiseScale, warpScale, warpStrength, octaves, persistence, lacunarity, centre + offset, normalizeMode);
+            break;
+         case NoiseType.Voronoi:
+            heightMap = Noise.GenerateVoronoiNoiseMap(mapChunkSize, gridSize, heightSeed, ref sites);
             break;
          default:
             heightMap = Noise.GeneratePerlinNoiseMap(mapChunkSize, mapChunkSize, heightSeed, noiseScale, centre+offset, normalizeMode);
@@ -159,6 +174,9 @@ public class MapGenerator : MonoBehaviour
          case NoiseType.DomainWarping:
             temperatureMap = Noise.GenerateDomainWarpedNoiseMap(mapChunkSize, mapChunkSize, temperatureSeed, noiseScale, warpScale, warpStrength, octaves, persistence, lacunarity, centre + offset, normalizeMode);
             break;
+         case NoiseType.Voronoi:
+            temperatureMap = Noise.GenerateVoronoiNoiseMap(mapChunkSize, gridSize, temperatureSeed, ref sites);
+            break;
          default:
             temperatureMap = Noise.GeneratePerlinNoiseMap(mapChunkSize, mapChunkSize, temperatureSeed, noiseScale, centre+offset, normalizeMode);
             break;
@@ -178,19 +196,25 @@ public class MapGenerator : MonoBehaviour
          case NoiseType.DomainWarping:
             humidityMap = Noise.GenerateDomainWarpedNoiseMap(mapChunkSize, mapChunkSize, humiditySeed, noiseScale, warpScale, warpStrength, octaves, persistence, lacunarity, centre + offset, normalizeMode);
             break;
+         case NoiseType.Voronoi:
+            humidityMap = Noise.GenerateVoronoiNoiseMap(mapChunkSize, gridSize, humiditySeed, ref sites);
+            break;
          default:
             humidityMap = Noise.GeneratePerlinNoiseMap(mapChunkSize, mapChunkSize, humiditySeed, noiseScale, centre+offset, normalizeMode);
             break;
       }
       
       ridgesMap = Noise.GenerateRidgeNoiseMap(mapChunkSize, mapChunkSize, heightSeed, noiseScale, octaves, persistence, lacunarity, centre + offset, normalizeMode);
-
+      voronoiMap = Noise.GenerateVoronoiNoiseMap(mapChunkSize, gridSize, heightSeed, ref sites);
+      
       for (int y = 0; y < heightMap.GetLength(0); y++)
       {
          for (int x = 0; x < heightMap.GetLength(1); x++)
          {
-            ridgesMap[x, y] *= 0.25f;
+            ridgesMap[x, y] *= ridgesIntensity;
+            voronoiMap[x, y] *= 0.5f;
             heightMap[x, y] = Mathf.Lerp(heightMap[x, y], ridgesMap[x, y], 0.1f);
+            heightMap[x, y] = Mathf.Lerp(heightMap[x, y], voronoiMap[x, y], 0.1f);
          }
       }
       
@@ -331,6 +355,8 @@ public class MapGenerator : MonoBehaviour
          lacunarity = 1;
       if (octaves < 0)
          octaves = 0;
+      if(gridSize <= 0)
+         gridSize = 1;
 
       // Organize
       sortedBiomes = biomes

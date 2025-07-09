@@ -1,7 +1,10 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using Unity.VisualScripting.FullSerializer;
+using UnityEditor.Experimental.GraphView;
 using UnityEngine;
+using Random = UnityEngine.Random;
 
 public static class Noise
 {
@@ -422,14 +425,98 @@ public static class Noise
       return temperatureMap;
    }
 
-   public static float[,] GenerateVoronoiNoiseMap(int mapWidth, int mapHeight)
+   public static float[,] GenerateVoronoiNoiseMap(int chunkSize, int gridSize, int seed, ref Vector2Int[,] closestSite)
    {
-      float[,] voronoiMap = new float[mapWidth, mapHeight];
+      // Create arrays
+      float[,] voronoiMap = new float[chunkSize, chunkSize];
+      Vector2Int[,] pointPositions = new Vector2Int[gridSize, gridSize];
+      closestSite = new Vector2Int[chunkSize, chunkSize];
+      Vector2Int[,] sitePos = new Vector2Int[gridSize, gridSize];
 
-      int gridSize = 10;
+
+      // Create one random site per grid-cell
+      if(gridSize == 0)
+         gridSize = 1; // avoid division by 0
+      int pixelsPerCell = chunkSize / gridSize;
+      System.Random prng = new System.Random(seed);
       
+      // Loop through the grid
+      for (int gx = 0; gx < gridSize; gx++)
+      {
+         for (int gy = 0; gy < gridSize; gy++)
+         {
+            int x = gx * pixelsPerCell + prng.Next(pixelsPerCell);
+            int y = gy * pixelsPerCell + prng.Next(pixelsPerCell);
+            sitePos[gx, gy] = new Vector2Int(x, y);
+         }
+      }
+      
+      // For each pixel find the nearest site and distance
+      float[,] regionMax = new float[gridSize, gridSize];
+      for (int y = 0; y < chunkSize; y++)
+      {
+         for (int x = 0; x < chunkSize; x++)
+         {
+            int cellX = Mathf.Min(x / pixelsPerCell, gridSize - 1);
+            int cellY = Mathf.Min(y / pixelsPerCell, gridSize - 1);
+
+            float bestDist = float.MaxValue;
+            Vector2Int bestCell = new Vector2Int(cellX, cellY);
+            
+            // search the 3x3 neighbourhood cells
+            for (int dy = -1; dy <= 1; dy++)
+            {
+               for (int dx = -1; dx <= 1; dx++)
+               {
+                  // neighbour cells
+                  int nx = cellX + dx;
+                  int ny = cellY + dy;
+                  
+                  if(nx < 0 || nx >= gridSize || ny < 0 || ny >= gridSize) continue;
+                  
+                  // Site position of neighbouring cell
+                  Vector2Int sp = sitePos[nx, ny];
+                  // check distance
+                  float d = Vector2Int.Distance(new Vector2Int(x, y), sp);
+                  if (d < bestDist)
+                  {
+                     bestDist = d;
+                     bestCell = new Vector2Int(nx, ny);
+                  }
+               }
+            }
+            voronoiMap[x,y] = bestDist;
+            closestSite[x, y] = bestCell;
+            
+            // record max distance
+            regionMax[bestCell.x, bestCell.y] = Mathf.Max(regionMax[bestCell.x, bestCell.y], bestDist);
+         }
+      }
+      
+      // Normalize per cell
+      for (int y = 0; y < chunkSize; y++)
+      {
+         for (int x = 0; x < chunkSize; x++)
+         {
+            Vector2Int cell = closestSite[x, y];
+
+            float dist = voronoiMap[x, y];
+            float maxDist = regionMax[cell.x, cell.y];
+            float t;
+
+            if (maxDist <= 0)
+               t = 1f;
+            else
+               t = 1- Mathf.Clamp01(dist / maxDist);
+
+            
+            voronoiMap[x, y] = t;
+         }
+      }
       
       return voronoiMap;
    }
-   
+
+
+
 }
