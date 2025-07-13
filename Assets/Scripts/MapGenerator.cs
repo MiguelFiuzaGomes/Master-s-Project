@@ -80,7 +80,9 @@ public class MapGenerator : MonoBehaviour
    public int siteCount;
    public int gridSize;
 
-   private Vector2Int[,] sites;
+   private Vector2Int[,] closestSites;
+   private Vector2Int[,] secondClosestSites;
+   private Vector2Int[,] sitePositions;
    
    
    
@@ -125,87 +127,51 @@ public class MapGenerator : MonoBehaviour
       else if (drawMode == DrawMode.Humidity)
          mapDisplay.DrawMesh(MeshGenerator.GenerateTerrainMesh(mapData.heightMap, drawHeightMultiplier, heightCurve, editorPreviewLOD), TextureGenerator.TextureFromHumidity(mapData.humidityMap));
       else if(drawMode == DrawMode.Voronoi)
-       mapDisplay.DrawMesh(MeshGenerator.GenerateTerrainMesh(mapData.heightMap, drawHeightMultiplier, heightCurve, editorPreviewLOD),TextureGenerator.TextureFromVoronoi(mapData.heightMap, mapChunkSize, sites));
+       mapDisplay.DrawMesh(MeshGenerator.GenerateTerrainMesh(mapData.heightMap, drawHeightMultiplier, heightCurve, editorPreviewLOD),TextureGenerator.TextureFromVoronoi(mapData.heightMap, mapChunkSize, closestSites));
    }
 
+   private float[,] GenerateNoiseMap(NoiseType noiseType, int seed, float scale, Vector2 centreOffset)
+   {
+      float[,] noiseMap = new float[mapChunkSize, mapChunkSize];
+
+      switch (noiseType)
+      {
+         case NoiseType.Perlin:
+            noiseMap = Noise.GeneratePerlinNoiseMap(mapChunkSize, mapChunkSize, seed, scale, centreOffset, normalizeMode);
+            break;
+         case NoiseType.FBM:
+            noiseMap = Noise.GenerateFBMNoiseMap(mapChunkSize, mapChunkSize , seed, scale, octaves, persistence, lacunarity, centreOffset, normalizeMode);
+            break;
+         case NoiseType.RidgeNoise:
+            noiseMap = Noise.GenerateRidgeNoiseMap(mapChunkSize, mapChunkSize, seed, scale, octaves, persistence, lacunarity, centreOffset, normalizeMode);
+            break;
+         case NoiseType.DomainWarping:
+            noiseMap = Noise.GenerateDomainWarpedNoiseMap(mapChunkSize, mapChunkSize, seed, scale, warpScale, warpStrength, octaves, persistence, lacunarity, centreOffset, normalizeMode);
+            break;
+         case NoiseType.Voronoi:
+            noiseMap = Noise.GenerateVoronoiNoiseMap(mapChunkSize, gridSize, heightSeed, ref closestSites, ref secondClosestSites, out sitePositions);
+            break;
+         default:
+            noiseMap = Noise.GeneratePerlinNoiseMap(mapChunkSize, mapChunkSize, seed, scale, centreOffset, normalizeMode);
+            break;
+      }
+
+      return noiseMap;
+   }
+   
    private MapData GenerateMapData(Vector2 centre)
    {
       // Create new noise maps
-      float[,] heightMap = new float[mapChunkSize, mapChunkSize];
-      float[,] temperatureMap = new float[mapChunkSize, mapChunkSize];
-      float[,] humidityMap = new float[mapChunkSize, mapChunkSize];
       float[,] ridgesMap = new float[mapChunkSize, mapChunkSize];
       float[,] voronoiMap = new float[mapChunkSize, mapChunkSize];
 
       // Populate heightMap based on the type of noise chosen
-      switch (heightNoiseType)
-      {
-         case NoiseType.Perlin:
-            heightMap = Noise.GeneratePerlinNoiseMap(mapChunkSize, mapChunkSize, heightSeed, noiseScale, centre+offset, normalizeMode);
-            break;
-         case NoiseType.FBM:
-            heightMap = Noise.GenerateFBMNoiseMap(mapChunkSize, mapChunkSize , heightSeed, noiseScale, octaves, persistence, lacunarity, centre + offset, normalizeMode);
-            break;
-         case NoiseType.RidgeNoise:
-            heightMap = Noise.GenerateRidgeNoiseMap(mapChunkSize, mapChunkSize, heightSeed, noiseScale, octaves, persistence, lacunarity, centre + offset, normalizeMode);
-            break;
-         case NoiseType.DomainWarping:
-            heightMap = Noise.GenerateDomainWarpedNoiseMap(mapChunkSize, mapChunkSize, heightSeed, noiseScale, warpScale, warpStrength, octaves, persistence, lacunarity, centre + offset, normalizeMode);
-            break;
-         case NoiseType.Voronoi:
-            heightMap = Noise.GenerateVoronoiNoiseMap(mapChunkSize, gridSize, heightSeed, ref sites);
-            break;
-         default:
-            heightMap = Noise.GeneratePerlinNoiseMap(mapChunkSize, mapChunkSize, heightSeed, noiseScale, centre+offset, normalizeMode);
-            break;
-      }
-      
-      switch (temperatureNoiseType)
-      {
-         case NoiseType.Perlin:
-            temperatureMap = Noise.GeneratePerlinNoiseMap(mapChunkSize, mapChunkSize, temperatureSeed, noiseScale, centre+offset, normalizeMode);
-            break;
-         case NoiseType.FBM:
-            temperatureMap = Noise.GenerateFBMNoiseMap(mapChunkSize, mapChunkSize , temperatureSeed, noiseScale, octaves, persistence, lacunarity, centre + offset, normalizeMode);
-            break;
-         case NoiseType.RidgeNoise:
-            temperatureMap = Noise.GenerateRidgeNoiseMap(mapChunkSize, mapChunkSize, temperatureSeed, noiseScale, octaves, persistence, lacunarity, centre + offset, normalizeMode);
-            break;
-         case NoiseType.DomainWarping:
-            temperatureMap = Noise.GenerateDomainWarpedNoiseMap(mapChunkSize, mapChunkSize, temperatureSeed, noiseScale, warpScale, warpStrength, octaves, persistence, lacunarity, centre + offset, normalizeMode);
-            break;
-         case NoiseType.Voronoi:
-            temperatureMap = Noise.GenerateVoronoiNoiseMap(mapChunkSize, gridSize, temperatureSeed, ref sites);
-            break;
-         default:
-            temperatureMap = Noise.GeneratePerlinNoiseMap(mapChunkSize, mapChunkSize, temperatureSeed, noiseScale, centre+offset, normalizeMode);
-            break;
-      }
-      
-      switch (humidityNoiseType)
-      {
-         case NoiseType.Perlin:
-            humidityMap = Noise.GeneratePerlinNoiseMap(mapChunkSize, mapChunkSize, humiditySeed, noiseScale, centre+offset, normalizeMode);
-            break;
-         case NoiseType.FBM:
-            humidityMap = Noise.GenerateFBMNoiseMap(mapChunkSize, mapChunkSize , humiditySeed, noiseScale, octaves, persistence, lacunarity, centre + offset, normalizeMode);
-            break;
-         case NoiseType.RidgeNoise:
-            humidityMap = Noise.GenerateRidgeNoiseMap(mapChunkSize, mapChunkSize, humiditySeed, noiseScale, octaves, persistence, lacunarity, centre + offset, normalizeMode);
-            break;
-         case NoiseType.DomainWarping:
-            humidityMap = Noise.GenerateDomainWarpedNoiseMap(mapChunkSize, mapChunkSize, humiditySeed, noiseScale, warpScale, warpStrength, octaves, persistence, lacunarity, centre + offset, normalizeMode);
-            break;
-         case NoiseType.Voronoi:
-            humidityMap = Noise.GenerateVoronoiNoiseMap(mapChunkSize, gridSize, humiditySeed, ref sites);
-            break;
-         default:
-            humidityMap = Noise.GeneratePerlinNoiseMap(mapChunkSize, mapChunkSize, humiditySeed, noiseScale, centre+offset, normalizeMode);
-            break;
-      }
+      float[,] heightMap = GenerateNoiseMap(heightNoiseType, heightSeed, noiseScale, Vector2.zero);
+      float[,] temperatureMap = GenerateNoiseMap(temperatureNoiseType, temperatureSeed, noiseScale, Vector2.zero);
+      float[,] humidityMap = GenerateNoiseMap(humidityNoiseType, humiditySeed, noiseScale, Vector2.zero);
       
       ridgesMap = Noise.GenerateRidgeNoiseMap(mapChunkSize, mapChunkSize, heightSeed, noiseScale, octaves, persistence, lacunarity, centre + offset, normalizeMode);
-      voronoiMap = Noise.GenerateVoronoiNoiseMap(mapChunkSize, gridSize, heightSeed, ref sites);
+      voronoiMap = Noise.GenerateVoronoiNoiseMap(mapChunkSize, gridSize, heightSeed, ref closestSites, ref secondClosestSites, out sitePositions);
       
       for (int y = 0; y < heightMap.GetLength(0); y++)
       {
@@ -224,22 +190,6 @@ public class MapGenerator : MonoBehaviour
       {
          for (int x = 0; x < mapChunkSize; x++)
          {
-            //Original Code
-            //Loop through the regions to see where the height falls into
-            // float currentHeight = noiseMap[x, y];
-            // for (int i = 0; i < regions.Length; i++)
-            // {
-            //    if (currentHeight >= regions[i].height)
-            //    {
-            //       colourMap[y * mapChunkSize + x] = regions[i].colour;
-            //    }
-            //    else
-            //    {
-            //       break;
-            //    }
-            // }
-            
-            
             // Default values
             float bestDist2 = float.MaxValue;
             Color bestColour = Color.magenta;

@@ -425,13 +425,13 @@ public static class Noise
       return temperatureMap;
    }
 
-   public static float[,] GenerateVoronoiNoiseMap(int chunkSize, int gridSize, int seed, ref Vector2Int[,] closestSite)
+   public static float[,] GenerateVoronoiNoiseMap(int chunkSize, int gridSize, int seed, ref Vector2Int[,] closestSite, ref Vector2Int[,] secondClosestSites, out Vector2Int[,] sitePositions)
    {
       // Create arrays
       float[,] voronoiMap = new float[chunkSize, chunkSize];
       Vector2Int[,] pointPositions = new Vector2Int[gridSize, gridSize];
       closestSite = new Vector2Int[chunkSize, chunkSize];
-      Vector2Int[,] sitePos = new Vector2Int[gridSize, gridSize];
+      sitePositions = new Vector2Int[gridSize, gridSize];
 
 
       // Create one random site per grid-cell
@@ -447,7 +447,7 @@ public static class Noise
          {
             int x = gx * pixelsPerCell + prng.Next(pixelsPerCell);
             int y = gy * pixelsPerCell + prng.Next(pixelsPerCell);
-            sitePos[gx, gy] = new Vector2Int(x, y);
+            sitePositions[gx, gy] = new Vector2Int(x, y);
          }
       }
       
@@ -475,7 +475,7 @@ public static class Noise
                   if(nx < 0 || nx >= gridSize || ny < 0 || ny >= gridSize) continue;
                   
                   // Site position of neighbouring cell
-                  Vector2Int sp = sitePos[nx, ny];
+                  Vector2Int sp = sitePositions[nx, ny];
                   // check distance
                   float d = Vector2Int.Distance(new Vector2Int(x, y), sp);
                   if (d < bestDist)
