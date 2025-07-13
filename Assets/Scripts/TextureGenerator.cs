@@ -1,17 +1,19 @@
-using System.Collections;
-using System.Collections.Generic;
-using Unity.VisualScripting;
 using UnityEngine;
 
 public static class TextureGenerator
 {
-    public static Texture2D TextureFromColorMap(Color[] colorMap, int width, int height)
+    public static Texture2D TextureFromColourMap(Color[] colourMap, int width, int height)
     {
-        Texture2D texture = new Texture2D(width, height);
-        texture.filterMode = FilterMode.Point;
-        texture.wrapMode = TextureWrapMode.Clamp;
+        Texture2D texture = new Texture2D(width, height)
+        {
+            filterMode = FilterMode.Point,
+            wrapMode = TextureWrapMode.Clamp
+        };
 
-        texture.SetPixels(colorMap);
+        // colourMap = BoxBlur(colourMap, width, height, 1);
+        // colourMap = GaussianBlur(colourMap, width, height, 1);
+
+        texture.SetPixels(colourMap);
         texture.Apply();
 
         return texture;
@@ -31,14 +33,16 @@ public static class TextureGenerator
             }
         }
 
-        return TextureFromColorMap(colourMap, width, height);
+        return TextureFromColourMap(colourMap, width, height);
     }
 
     public static Texture2D VoronoiTexture(int gridSize, Color[] zoneColors, int width, int height)
     {
         //Set up
-        Texture2D texture = new Texture2D(width, height);
-        texture.filterMode = FilterMode.Point;
+        Texture2D texture = new Texture2D(width, height)
+        {
+            filterMode = FilterMode.Point
+        };
         int pixelPerCell = width / gridSize;
 
         // Generate Points
@@ -75,7 +79,7 @@ public static class TextureGenerator
             }
         }
 
-        return TextureFromColorMap(colourMap, width, height);
+        return TextureFromColourMap(colourMap, width, height);
     }
 
     public static Texture2D TextureFromHumidity(float[,] heightMap)
@@ -92,7 +96,7 @@ public static class TextureGenerator
             }
         }
 
-        return TextureFromColorMap(colourMap, width, height);
+        return TextureFromColourMap(colourMap, width, height);
     }
 
     public static Texture2D TextureFromVoronoi(float[,] heightMap, int chunkSize, Vector2Int[,] closestSite)
@@ -143,19 +147,101 @@ public static class TextureGenerator
                 float d = heightMap[x, y];
                 float maxD = regionMax[site.x, site.y];
 
-                float t;
-                if (maxD <= 0f)
-                    t = 0f; // if the cell collapsed to the center, make it black
-                else
-                    t = Mathf.Clamp01(d / maxD); 
+                float t = maxD <= 0f ? 0f : // if the cell collapsed to the center, make it black
+                    Mathf.Clamp01(d / maxD); 
                 
                 colourMap[y * chunkSize + x] = Color.Lerp(Color.black, Color.white, t);
             }
         }
         
-        return TextureFromColorMap(colourMap, chunkSize, chunkSize);
+        return TextureFromColourMap(colourMap, chunkSize, chunkSize);
     }
 
+    private static Color[] BoxBlur(Color[] colors, int width, int height, int radius)
+    {
+        Color[] blur = new Color[colors.Length];
 
+        for (int y = 0; y < height; y++)
+        {
+            for (int x = 0; x < width; x++)
+            {
+                Color sum = Color.black;
+                int count = 0;
+                
+                // sample in a 2*radius+1 by 2*radius +1 area
+                for (int dy = -radius; dy <= radius; dy++)
+                {
+                    for (int dx = -radius; dx <= radius; dx++)
+                    {
+                        int ny = y + dy;
+                        int nx = x + dx;
 
+                        // avoid out of bounds
+                        if (nx < 0 || nx >= width || ny < 0 || ny >= height)
+                            continue;
+                        
+                        sum += colors[ny * width + nx];
+                        count++;
+                    }
+                }
+                blur[y * width + x] = sum / count;
+            }
+        }
+        
+        return blur;
+    }
+
+    
+    private static Color[] GaussianBlur(Color[] src, int width, int height, float sigma)
+    {
+        // build 1D kernel
+        int radius = Mathf.CeilToInt(3 * sigma);
+        float[] kernel = new float[2 * radius + 1];
+        float twoSigma2 = 2 * sigma * sigma;
+        float sum = 0;
+        for (int i = -radius; i <= radius; i++)
+        {
+            float v = Mathf.Exp(-(i*i) / twoSigma2);
+            kernel[i + radius] = v;
+            sum += v;
+        }
+        // normalize
+        for (int i = 0; i < kernel.Length; i++)
+            kernel[i] /= sum;
+
+        var tmp = new Color[src.Length];
+        var dst = new Color[src.Length];
+
+        // horizontal pass
+        for (int y = 0; y < height; y++)
+        {
+            for (int x = 0; x < width; x++)
+            {
+                Color col = Color.black;
+                for (int k = -radius; k <= radius; k++)
+                {
+                    int xx = Mathf.Clamp(x + k, 0, width - 1);
+                    col += src[y * width + xx] * kernel[k + radius];
+                }
+                tmp[y * width + x] = col;
+            }
+        }
+
+        // vertical pass
+        for (int y = 0; y < height; y++)
+        {
+            for (int x = 0; x < width; x++)
+            {
+                Color col = Color.black;
+                for (int k = -radius; k <= radius; k++)
+                {
+                    int yy = Mathf.Clamp(y + k, 0, height - 1);
+                    col += tmp[yy * width + x] * kernel[k + radius];
+                }
+                dst[y * width + x] = col;
+            }
+        }
+
+        return dst;
+    }
 }
