@@ -13,8 +13,8 @@ MonoBehaviour:
   m_Name: Plains
   m_EditorClassIdentifier: 
   name: Plains
-  minimumHeight: 0.5
-  maximumHeight: 0.7
+  minimumHeight: 0.4
+  maximumHeight: 0.6
   minimumTemperature: 0.5
   maximumTemperature: 0.8
   minimumHumidity: 0

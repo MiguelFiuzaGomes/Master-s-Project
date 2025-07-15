@@ -174,7 +174,7 @@ public class EndlessTerrain : MonoBehaviour
             //Draw temperature map
             //Texture2D texture = TextureGenerator.TextureFromTemperatureMap(mapData.temperatureMap);
             Texture2D texture = TextureGenerator.TextureFromColourMap(mapData.colourMap, MapGenerator.mapChunkSize, MapGenerator.mapChunkSize);
-            
+            meshRenderer.material.SetTexture("_Texture2D", texture);
             meshRenderer.material.mainTexture = texture;
             
             UpdateTerrainChunk();

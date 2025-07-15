@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   name: Deep Ocean
   minimumHeight: 0
-  maximumHeight: 0.2
+  maximumHeight: 0
   minimumTemperature: 0.7
   maximumTemperature: 1
   minimumHumidity: 0

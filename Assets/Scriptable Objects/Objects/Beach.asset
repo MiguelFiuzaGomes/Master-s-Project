@@ -13,11 +13,11 @@ MonoBehaviour:
   m_Name: Beach
   m_EditorClassIdentifier: 
   name: Desert
-  minimumHeight: 0.4
-  maximumHeight: 0.5
-  minimumTemperature: 0.8
+  minimumHeight: 0.3
+  maximumHeight: 0.4
+  minimumTemperature: 0.5
   maximumTemperature: 1
-  minimumHumidity: 0
+  minimumHumidity: 0.7
   maximumHumidity: 1
   weightBias: 0.1
   colour: {r: 1, g: 0.7841497, b: 0.3820755, a: 1}

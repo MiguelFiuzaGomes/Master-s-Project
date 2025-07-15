@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using Unity.Mathematics;
 using Unity.VisualScripting.FullSerializer;
 using UnityEditor.Experimental.GraphView;
 using UnityEngine;
@@ -518,5 +519,35 @@ public static class Noise
    }
 
 
+   public static float[,] Normalize(float[,] map)
+   {
+      int width = map.GetLength(0);
+      int height = map.GetLength(1);
+      
+      float maxValue = float.MinValue;
+      float minValue = float.MaxValue;
 
+      for (int y = 0; y < height; y++)
+      {
+         for (int x = 0; x < width; x++)
+         {
+            float currentValue = map[x, y];
+            
+            if(currentValue > maxValue)
+               maxValue = currentValue;
+            if(currentValue < minValue)
+               minValue = currentValue;
+         }
+      }
+
+      for (int y = 0; y < height; y++)
+      {
+         for (int x = 0; x < width; x++)
+         {
+            map[x,y] = Mathf.InverseLerp(minValue, maxValue, map[x, y]);
+         }
+      }
+      
+      return map;
+   }
 }

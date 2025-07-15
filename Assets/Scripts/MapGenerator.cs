@@ -162,27 +162,27 @@ public class MapGenerator : MonoBehaviour
    private MapData GenerateMapData(Vector2 centre)
    {
       // Create new noise maps
-      float[,] ridgesMap = new float[mapChunkSize, mapChunkSize];
-      float[,] voronoiMap = new float[mapChunkSize, mapChunkSize];
 
       // Populate heightMap based on the type of noise chosen
       float[,] heightMap = GenerateNoiseMap(heightNoiseType, heightSeed, noiseScale, Vector2.zero);
       float[,] temperatureMap = GenerateNoiseMap(temperatureNoiseType, temperatureSeed, noiseScale, Vector2.zero);
       float[,] humidityMap = GenerateNoiseMap(humidityNoiseType, humiditySeed, noiseScale, Vector2.zero);
       
-      ridgesMap = Noise.GenerateRidgeNoiseMap(mapChunkSize, mapChunkSize, heightSeed, noiseScale, octaves, persistence, lacunarity, centre + offset, normalizeMode);
-      voronoiMap = Noise.GenerateVoronoiNoiseMap(mapChunkSize, gridSize, heightSeed, ref closestSites, ref secondClosestSites, out sitePositions);
+      float[,] ridgesMap = Noise.GenerateRidgeNoiseMap(mapChunkSize, mapChunkSize, heightSeed, noiseScale, octaves, persistence, lacunarity, centre + offset, normalizeMode);
       
       for (int y = 0; y < heightMap.GetLength(0); y++)
       {
          for (int x = 0; x < heightMap.GetLength(1); x++)
          {
             ridgesMap[x, y] *= ridgesIntensity;
-            voronoiMap[x, y] *= 0.5f;
             heightMap[x, y] = Mathf.Lerp(heightMap[x, y], ridgesMap[x, y], 0.1f);
-            heightMap[x, y] = Mathf.Lerp(heightMap[x, y], voronoiMap[x, y], 0.1f);
+            
          }
       }
+
+      // Re-normalize height map 
+      heightMap = Noise.Normalize(heightMap);
+
       
       Color[] colourMap = new Color[mapChunkSize * mapChunkSize];
       

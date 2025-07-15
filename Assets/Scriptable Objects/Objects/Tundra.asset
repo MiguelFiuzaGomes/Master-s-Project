@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Tundra
   m_EditorClassIdentifier: 
   name: Tundra
-  minimumHeight: 0.5
+  minimumHeight: 0.4
   maximumHeight: 0.7
   minimumTemperature: 0
   maximumTemperature: 0.2
