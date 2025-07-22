@@ -22,6 +22,9 @@ public class SO_Biome : ScriptableObject
     [Header("Colour")]
     public Color colour;
     
+    [Header("Texture")]
+    public Texture2D texture;
+    
     /*
      * TODO: Add assets
      *  Add ranges to the values (temp, hum)

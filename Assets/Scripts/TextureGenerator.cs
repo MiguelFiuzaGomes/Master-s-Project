@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 public static class TextureGenerator
@@ -157,6 +158,23 @@ public static class TextureGenerator
         return TextureFromColourMap(colourMap, chunkSize, chunkSize);
     }
 
+    public static Texture2D TextureFromBiomeColour(int[,] biomeMap, int width, int height)
+    {
+        Texture2D texture = new Texture2D(width, height, TextureFormat.R8, false);
+
+        for (int y = 0; y < height; y++)
+        {
+            for (int x = 0; x < width; x++)
+            {
+                float index = biomeMap[y, x] / 255f;
+                texture.SetPixel(x, y, new Color (index, 0, 0 ));
+            }
+        }
+        
+        texture.Apply();
+        return texture;
+    }
+    
     private static Color[] BoxBlur(Color[] colors, int width, int height, int radius)
     {
         Color[] blur = new Color[colors.Length];
