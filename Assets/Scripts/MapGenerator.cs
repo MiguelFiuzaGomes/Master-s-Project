@@ -44,7 +44,6 @@ public class MapGenerator : MonoBehaviour
    public float drawHeightMultiplier;
    public Noise.NormalizeMode normalizeMode;
    [Range(0,1)]public float ridgesIntensity;
-   public int tileSize;
    
    [Header("Height Map Settings")]
    public NoiseType heightNoiseType;
@@ -118,9 +117,9 @@ public class MapGenerator : MonoBehaviour
 
       // Check which drawMode is selected and apply it to either a plane or a mesh
       if (drawMode == DrawMode.Noise)
-         mapDisplay.DrawTexture(TextureGenerator.TextureFromHeightMap(mapData.heightMap), sortedBiomes);
+         mapDisplay.DrawTexture(TextureGenerator.TextureFromHeightMap(mapData.heightMap));
       else if (drawMode == DrawMode.ColourMap)
-         mapDisplay.DrawTexture(TextureGenerator.TextureFromColourMap(mapData.colourMap, mapChunkSize, mapChunkSize), sortedBiomes);
+         mapDisplay.DrawTexture(TextureGenerator.TextureFromColourMap(mapData.colourMap, mapChunkSize, mapChunkSize));
       else if (drawMode == DrawMode.DrawMesh)
          mapDisplay.DrawMesh(MeshGenerator.GenerateTerrainMesh(mapData.heightMap, drawHeightMultiplier, heightCurve, editorPreviewLOD), TextureGenerator.TextureFromColourMap(mapData.colourMap, mapChunkSize, mapChunkSize));
       else if (drawMode == DrawMode.Temperature)
@@ -186,7 +185,6 @@ public class MapGenerator : MonoBehaviour
 
       
       Color[] colourMap = new Color[mapChunkSize * mapChunkSize];
-      int[,] biomeIndexMap = new int[mapChunkSize, mapChunkSize];
       
       for (int y = 0; y < mapChunkSize; y++)
       {
@@ -200,9 +198,7 @@ public class MapGenerator : MonoBehaviour
             float currenHeight = heightMap[x, y];
             float currentTemperature = temperatureMap[x, y];
             float currentHumidity = humidityMap[x, y];
-            
-            int bestBiomeIndex = -1;
-            
+
             foreach (SO_Biome biome in sortedBiomes)
             {
                float d2 = Dist2ToRange(currentHumidity, biome.minimumHumidity, biome.maximumHumidity) + humidityWeight;
@@ -221,16 +217,14 @@ public class MapGenerator : MonoBehaviour
                {
                   bestDist2 = d2;
                   bestColour = biome.colour;
-                  bestBiomeIndex = sortedBiomes.IndexOf(biome);
                }
             }
 
             colourMap[y * mapChunkSize + x] = bestColour;
-            biomeIndexMap[x,y] = bestBiomeIndex;
          }
       }
 
-      return new MapData(heightMap, colourMap, temperatureMap, humidityMap, biomeIndexMap);
+      return new MapData(heightMap, colourMap, temperatureMap, humidityMap);
    }
 
    void Update()
@@ -383,7 +377,6 @@ public struct MapData
    public readonly Color[] colourMap;
    public readonly float[,] temperatureMap;
    public readonly float[,] humidityMap;
-   public readonly int[,] biomeIndexMap;
 
    // Original Code
    public MapData(float[,] heightMap, Color[] colourMap)
@@ -394,16 +387,14 @@ public struct MapData
       this.temperatureMap[0,0] = 0;
       this.humidityMap = new float[0, 0];
       this.humidityMap[0,0] = 0;
-      this.biomeIndexMap = new int[0,0];
    }
    
-   public MapData(float[,] heightMap, Color[] colourMap, float[,] temperatureMap, float[,] humidityMap, int[,] biomeIndexMap)
+   public MapData(float[,] heightMap, Color[] colourMap, float[,] temperatureMap, float[,] humidityMap)
    {
       this.heightMap = heightMap;
       this.colourMap = colourMap;
       this.temperatureMap = temperatureMap;
       this.humidityMap = humidityMap;
-      this.biomeIndexMap = biomeIndexMap;
    }
 }
 #endregion

@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 85ac2aa16ab30d64cae9dc09a688c2f8, type: 3}
   m_Name: Beach
   m_EditorClassIdentifier: 
-  name: Beach
+  name: Desert
   minimumHeight: 0.3
   maximumHeight: 0.4
   minimumTemperature: 0.5
@@ -20,5 +20,4 @@ MonoBehaviour:
   minimumHumidity: 0.7
   maximumHumidity: 1
   weightBias: 0.1
-  colour: {r: 1, g: 0.7843138, b: 0.3803922, a: 1}
-  texture: {fileID: 2800000, guid: 5f27d6784bc92ec4c816056a6a717f89, type: 3}
+  colour: {r: 1, g: 0.7841497, b: 0.3820755, a: 1}

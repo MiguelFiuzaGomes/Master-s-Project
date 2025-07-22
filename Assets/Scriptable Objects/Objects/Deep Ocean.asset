@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 85ac2aa16ab30d64cae9dc09a688c2f8, type: 3}
   m_Name: Deep Ocean
   m_EditorClassIdentifier: 
-  name: Deep_Ocean
+  name: Deep Ocean
   minimumHeight: 0
   maximumHeight: 0
   minimumTemperature: 0.7
@@ -21,4 +21,3 @@ MonoBehaviour:
   maximumHumidity: 1
   weightBias: 0.1
   colour: {r: 0.07098818, g: 0, b: 1, a: 1}
-  texture: {fileID: 2800000, guid: 55219bd30e5230047b935c758e514595, type: 3}
