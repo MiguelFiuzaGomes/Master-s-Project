@@ -13,11 +13,11 @@ MonoBehaviour:
   m_Name: Plains
   m_EditorClassIdentifier: 
   name: Plains
-  minimumHeight: 0.4
-  maximumHeight: 0.6
-  minimumTemperature: 0.5
-  maximumTemperature: 0.8
-  minimumHumidity: 0
-  maximumHumidity: 0.5
+  minimumHeight: 0.2
+  maximumHeight: 0.5
+  minimumTemperature: 0.4
+  maximumTemperature: 0.7
+  minimumHumidity: 0.2
+  maximumHumidity: 0.6
   weightBias: 0.1
   colour: {r: 0.18281008, g: 0.6320754, b: 0.14012992, a: 1}

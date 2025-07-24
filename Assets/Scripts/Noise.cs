@@ -1,27 +1,11 @@
-using System;
-using System.Collections;
-using System.Collections.Generic;
-using Unity.Mathematics;
-using Unity.VisualScripting.FullSerializer;
-using UnityEditor.Experimental.GraphView;
 using UnityEngine;
-using Random = UnityEngine.Random;
 
 public static class Noise
 {
-
-   public enum NormalizeMode
-   {
-      Local, 
-      Global, // estimating noise min and max
-   }
-   
    public static float[,] GeneratePerlinNoiseMap(int mapWidth, int mapHeight, int seed, float scale, Vector2 offset, NormalizeMode normalizeMode)
    {
       float [,] noiseMap = new float[mapWidth, mapHeight];
 
-      float maxPossibleHeight = 0;
-      float amplitude = 1;
       float frequency = 1;
       
       System.Random prng = new System.Random(seed);
@@ -79,8 +63,8 @@ public static class Noise
       System.Random prng = new System.Random(seed);
       Vector2[] octaveOffsets = new Vector2[octaves];
       
-      float maxPossibleHeight = 0;
-      float maxPossibleAmplitude = 0;
+      // float maxPossibleHeight = 0;
+      // float maxPossibleAmplitude = 0;
       float amplitude = 1;
       float frequency = 1;
       
@@ -91,12 +75,12 @@ public static class Noise
          octaveOffsets[i] = new Vector2(offsetX, offsetY);
 
          // Used for normalization
-         maxPossibleHeight += amplitude;
+         // maxPossibleHeight += amplitude;
          amplitude *= persistence;
          frequency *= lacunarity;
          
          // Used for normalization
-         maxPossibleAmplitude += amplitude;
+         // maxPossibleAmplitude += amplitude;
       }
       
       float[,] noiseMap = new float[mapWidth, mapHeight];
@@ -157,7 +141,7 @@ public static class Noise
             }
             else
             {
-               float normalizedHeight = (noiseMap[x, y]) / (maxPossibleAmplitude * maxPossibleHeight * 1.25f);
+               // float normalizedHeight = (noiseMap[x, y]) / (maxPossibleAmplitude * maxPossibleHeight * 1.25f);
                //noiseMap[x, y] = Mathf.Clamp(normalizedHeight, 0, int.MaxValue);
                noiseMap[x,y] *= noiseMap[x, y] * 2f; // increase contrast
                noiseMap[x,y] = Mathf.Clamp01(noiseMap[x, y]); // Clamp back to range[0,1]
@@ -174,8 +158,11 @@ public static class Noise
       float [,] noiseMap = new float[mapWidth, mapHeight];
 
       float maxPossibleHeight = 0;
-      float amplitude = 1;
-      float frequency = 1;
+      float initAmplitude = 1;
+      float initFrequency = 1;
+
+      float amplitude = initAmplitude;
+      float frequency = initFrequency;
       
       System.Random prng = new System.Random(seed);
       Vector2[] octaveOffsets = new Vector2[octaves];
@@ -216,7 +203,7 @@ public static class Noise
                float sampleX = (x - halfWidth + octaveOffsets[i].x) / scale * frequency;
                float sampleY = (y - halfHeight + octaveOffsets[i].y) / scale * frequency;
 
-               float perlinValue = Mathf.PerlinNoise(sampleX, sampleY)  * 2 - 1; // Range[-2, 2]
+               float perlinValue = Mathf.PerlinNoise(sampleX, sampleY)  * frequency - amplitude; // Range[-2, 2]
                noiseHeight += perlinValue * amplitude;
                
                amplitude *= persistence;
@@ -247,7 +234,7 @@ public static class Noise
             else
             {
                // estimate the noise values
-               float normalizedHeight = (noiseMap[x,y] * 2f) / (maxPossibleHeight);
+               float normalizedHeight = (noiseMap[x,y] * initAmplitude) / (maxPossibleHeight * initFrequency);
                noiseMap[x, y] = Mathf.Clamp01(normalizedHeight);
             }
          }

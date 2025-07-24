@@ -12,12 +12,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 85ac2aa16ab30d64cae9dc09a688c2f8, type: 3}
   m_Name: Cliffside
   m_EditorClassIdentifier: 
-  name: 
+  name: Cliffside
   minimumHeight: 0.7
-  maximumHeight: 0.8
+  maximumHeight: 0.85
   minimumTemperature: 0.2
   maximumTemperature: 0.5
   minimumHumidity: 0
-  maximumHumidity: 0.3
+  maximumHumidity: 0.4
   weightBias: 0.1
   colour: {r: 0.7830189, g: 0.6482067, b: 0.5133945, a: 1}

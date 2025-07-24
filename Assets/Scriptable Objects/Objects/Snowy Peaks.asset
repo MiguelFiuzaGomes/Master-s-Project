@@ -13,11 +13,11 @@ MonoBehaviour:
   m_Name: Snowy Peaks
   m_EditorClassIdentifier: 
   name: Snowy Peaks
-  minimumHeight: 0.8
+  minimumHeight: 0.95
   maximumHeight: 1
   minimumTemperature: 0
-  maximumTemperature: 0.2
-  minimumHumidity: 0.75
-  maximumHumidity: 1
-  weightBias: 0.125
+  maximumTemperature: 0.15
+  minimumHumidity: 0
+  maximumHumidity: 0.5
+  weightBias: 0.15
   colour: {r: 1, g: 1, b: 1, a: 1}

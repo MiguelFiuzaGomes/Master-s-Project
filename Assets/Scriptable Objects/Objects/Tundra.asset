@@ -13,11 +13,11 @@ MonoBehaviour:
   m_Name: Tundra
   m_EditorClassIdentifier: 
   name: Tundra
-  minimumHeight: 0.4
+  minimumHeight: 0.5
   maximumHeight: 0.7
   minimumTemperature: 0
-  maximumTemperature: 0.2
-  minimumHumidity: 0
-  maximumHumidity: 0.5
+  maximumTemperature: 0.3
+  minimumHumidity: 0.2
+  maximumHumidity: 0.8
   weightBias: 0.1
   colour: {r: 0.8207547, g: 0.8207547, b: 0.8207547, a: 1}

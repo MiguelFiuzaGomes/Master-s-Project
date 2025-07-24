@@ -13,11 +13,11 @@ MonoBehaviour:
   m_Name: Shallows
   m_EditorClassIdentifier: 
   name: Shallows
-  minimumHeight: 0.1
+  minimumHeight: 0.15
   maximumHeight: 0.3
   minimumTemperature: 0
-  maximumTemperature: 0.5
+  maximumTemperature: 1
   minimumHumidity: 0
   maximumHumidity: 1
-  weightBias: 0.1
+  weightBias: 0.3
   colour: {r: 0, g: 0.3866017, b: 1, a: 1}

@@ -14,10 +14,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   name: Deep Ocean
   minimumHeight: 0
-  maximumHeight: 0
-  minimumTemperature: 0.7
+  maximumHeight: 0.15
+  minimumTemperature: 0
   maximumTemperature: 1
   minimumHumidity: 0
   maximumHumidity: 1
-  weightBias: 0.1
+  weightBias: 0.5
   colour: {r: 0.07098818, g: 0, b: 1, a: 1}

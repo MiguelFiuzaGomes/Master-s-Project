@@ -12,12 +12,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 85ac2aa16ab30d64cae9dc09a688c2f8, type: 3}
   m_Name: Rocky Peaks
   m_EditorClassIdentifier: 
-  name: Snowy Peaks
-  minimumHeight: 0.9
-  maximumHeight: 1
+  name: Rocky Peaks
+  minimumHeight: 0.85
+  maximumHeight: 0.95
   minimumTemperature: 0
   maximumTemperature: 0.2
   minimumHumidity: 0
   maximumHumidity: 0.3
-  weightBias: 0.1
+  weightBias: 0.12
   colour: {r: 0.38679248, g: 0.32458243, b: 0.26455146, a: 1}
