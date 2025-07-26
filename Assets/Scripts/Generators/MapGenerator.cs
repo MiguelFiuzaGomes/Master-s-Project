@@ -205,7 +205,7 @@ public class MapGenerator : MonoBehaviour
 //          for(int x = 0; x < mapChunkSize; x++)
 //             colourMap[y * mapChunkSize + x] = biomeMap[x, y].colour;
       biomeMapGenerator = new BiomeMapGenerator(sortedBiomes);
-
+      
       // Create noise maps and populate them
       float[,] rawHeightMap = NoiseMapGenerator.GenerateNoiseMap(HeightSettings, centre, normalizeMode, mapChunkSize, mapChunkSize);
       float[,] rawTemperatureMap = NoiseMapGenerator.GenerateNoiseMap(TemperatureSettings, centre, normalizeMode, mapChunkSize, mapChunkSize);
@@ -215,23 +215,79 @@ public class MapGenerator : MonoBehaviour
       float[,] heightMap = new float[mapChunkSize, mapChunkSize];
       float[,] temperatureMap = new float[mapChunkSize, mapChunkSize];
       float[,] humidityMap = new float[mapChunkSize, mapChunkSize];
-
+      
+      // Ridges noise map to get higher elevation
+      NoiseSettings ridgeNoiseSettings = HeightSettings;
+      ridgeNoiseSettings.noiseType = NoiseType.Ridge;
+      
+      float[,] rawridgesMap = NoiseMapGenerator.GenerateNoiseMap(ridgeNoiseSettings, centre, normalizeMode, mapChunkSize, mapChunkSize);
+      
+      // Clamp curves to [0,1]
+      heightCurve.preWrapMode = WrapMode.Clamp;
+      heightCurve.postWrapMode = WrapMode.Clamp;
+      temperatureCurve.preWrapMode = WrapMode.Clamp;
+      temperatureCurve.postWrapMode = WrapMode.Clamp;
+      humidityCurve.preWrapMode = WrapMode.Clamp;
+      humidityCurve.postWrapMode = WrapMode.Clamp;
+      
+      
       // Evaluate each noiseMap with their specific curve
       for (int y = 0; y < mapChunkSize; y++)
       {
          for (int x = 0; x < mapChunkSize; x++)
          {
-            heightMap[x, y] = heightCurve.Evaluate(rawHeightMap[x, y]);
-            temperatureMap[x, y] = temperatureCurve.Evaluate(rawTemperatureMap[x, y]);
-            humidityMap[x, y] = humidityCurve.Evaluate(rawHumidityMap[x, y]);
+            // safeguard against NaNs and Infinites
+            // clamp inputs
+            float rawHeight = rawHeightMap[x, y];
+            if(!float.IsFinite(rawHeight)) rawHeight = 0;
+            float ridge = Mathf.Clamp01(rawridgesMap[x, y]);
+            if(!float.IsFinite(ridge)) ridge = 0;
+            
+            float height = Mathf.Clamp01(rawHeight + ridge * ridgesIntensity);
+            
+            float temperature = Mathf.Clamp01(rawTemperatureMap[x, y]); 
+            if(!float.IsFinite(temperature)) temperature = 0;
+            
+            float humidity = Mathf.Clamp01(rawHumidityMap[x, y]);
+            if(!float.IsFinite(humidity)) humidity = 0;
+            
+            // clamp the evaluated result 
+            // Animation Curves can "overshoot" their values even when clamped in [0,1]
+            // Safeguard against NaNs and Infinites
+            float heightEvalute = heightCurve.Evaluate(height);
+            if(!float.IsFinite(heightEvalute)) heightEvalute = 0;
+            float temperatureEvaluate = temperatureCurve.Evaluate(temperature);
+            if(!float.IsFinite(temperatureEvaluate)) temperatureEvaluate = 0;
+            float humidityEvaluate = humidityCurve.Evaluate(humidity);
+            if(!float.IsFinite(humidityEvaluate)) humidityEvaluate = 0;
+            
+            // Pass the clamped value to the final maps
+            heightMap[x, y] = Mathf.Clamp01(heightEvalute);
+            temperatureMap[x, y] = Mathf.Clamp01(temperatureEvaluate);
+            humidityMap[x, y] = Mathf.Clamp01(humidityEvaluate);
+
          }
       }
-      
+
       // Create the colour map for the biome colours
       Color[] colourMap = new Color[mapChunkSize * mapChunkSize];
       
       // Combine into a biome grid
       SO_Biome[,] biomeMap = biomeMapGenerator.GenerateBiomeMap(heightMap, temperatureMap, humidityMap);
+     
+      // Carve beach biomes along the coast
+      biomeMap = BeachGenerator.CarveBeach(
+          biomeMap, 
+          heightMap,
+          shallows: sortedBiomes.First(b => b.name == "Shallows"), 
+          beach: sortedBiomes.First(b => b.name == "Beach"),
+          deepOcean: sortedBiomes.First(b => b.name == "Deep Ocean"));
+      
+      
+      // Prune small islands so there isn't single tile biomes
+      biomeMap = BiomePost.PruneTinyRegions(biomeMap, 6);
+      
+      heightMap = BiomePost.ReapplyHeightByBiome(heightMap, biomeMap);
       
       // Generate colour based on the best biomes
       colourMap = ColourMapGenerator.GenerateColourMap(biomeMap);
@@ -278,6 +334,10 @@ public class MapGenerator : MonoBehaviour
    void MapDataThread(Vector2 centre, Action<MapData> callback)
    { 
       MapData mapData = GenerateMapData(centre);
+      
+      LogHeightStats(mapData.heightMap, "[Runtime] MapGenerator.MapDataThread: height map");
+      
+      SanitizeHeightMap(mapData.heightMap);
       
       // Locked so it can't be accessed simultaneously
       lock (mapDataThreadInfoQueue)
@@ -364,5 +424,120 @@ public class MapGenerator : MonoBehaviour
          return (maximum - value) * (maximum - value);
       else
          return 0f;
+   }
+   
+   // Helper function to Sanitize data
+   private static void SanitizeHeightMap(float[,] heightMap)
+   {
+      int width = heightMap.GetLength(0), height = heightMap.GetLength(1);
+
+      // Copy the original so we don't change values as we go
+      float[,] original = heightMap.Clone() as float[,];
+      
+      // Offsets for the 8 neighbours
+      /*
+            (-1, -1) (0, -1) (1, -1)
+            (-1, 0) (0, 0) (1, 0)
+            (-1, 1) (0, 1) (1, 1)       
+      */
+      
+      int[] dx = { -1, 0, 1, -1, 1, -1, 0, 1 };
+      int[] dy = { -1, -1, -1, 0, 0, 1, 1, 1 };
+      
+      
+      for (int y = 0; y < height; y++)
+      {
+         for (int x = 0; x < width; x++)
+         {
+            float value = original[x, y];
+            
+            // Catch NaNs and infinites
+            // Turn their height into the average of their neighbouring values
+            if (float.IsNaN(value) || float.IsInfinity(value))
+            {
+               // Gather all valid neighbours
+               float sum = 0f;
+               int count = 0;
+
+               for (int i = 0; i < dx.Length; i++)
+               {
+                  // Define the neighbours
+                  int nx = x + dx[i];
+                  int ny = y + dy[i];
+                  
+                  // Exclude out of bounds
+                  if(nx < 0 || nx >= width || ny < 0 || ny >= height)
+                     continue;
+                  
+                  float neighbourValue = original[nx, ny];
+                  
+                  // Exclude invalid neighbours (NaN or infinite)
+                  if(float.IsNaN(neighbourValue) || float.IsInfinity(neighbourValue))
+                     continue;
+                  
+                  // Sum the value of the number
+                  // Increase count
+                  sum += neighbourValue;
+                  count++; 
+               }
+               
+               // Replace heightMap's value or fallback to 0 if there's no valid neighbours
+               heightMap[x, y] = (count > 0 ? (sum / count) : 0f);
+            }
+            // Make sure that the value is unchanged
+            else
+               heightMap[x,y] = original[x, y];
+         }
+      }
+   }
+   
+   // Debugging
+   public static void LogHeightStats(float[,] map, string label)
+   {
+      int w = map.GetLength(0), h = map.GetLength(1);
+      float min = float.MaxValue, max = float.MinValue;
+      int nan = 0;
+      for (int y = 0; y < h; y++)
+      for (int x = 0; x < w; x++)
+      {
+         float v = map[x,y];
+         if (float.IsNaN(v) || float.IsInfinity(v)) { nan++; continue; }
+         min = Mathf.Min(min, v);
+         max = Mathf.Max(max, v);
+      }
+      Debug.Log($"{label} → min={min:F3}, max={max:F3}, NaNs={nan}/{w*h}");
+   }
+
+   public static void LogCurveHeight(float[,] map, AnimationCurve curve, float multiplier,string label)
+   {
+      int w = map.GetLength(0), h = map.GetLength(1);
+      float min = float.MaxValue, max = float.MinValue;
+      int nan = 0;
+      for (int y = 0; y < h; y++)
+      for (int x = 0; x < w; x++)
+      {
+         float v = curve.Evaluate(map[x,y]) * multiplier;
+         if (float.IsNaN(v) || float.IsInfinity(v)) { nan++; continue; }
+         min = Mathf.Min(min, v);
+         max = Mathf.Max(max, v);
+      }
+      Debug.Log($"{label} → min={min:F3}, max={max:F3}, NaNs={nan}/{w*h}");
+   }
+
+   public static void LogVerticesStats(Vector3[] vertices, string label)
+   {
+      float min = float.MaxValue, max = float.MinValue;
+      
+      int nan = 0;
+
+      for (int i = 0; i < vertices.Length; i++)
+      {
+         float v = vertices[i].y;
+         if (float.IsNaN(v) || float.IsInfinity(v)) { nan++; continue; }
+         min = Mathf.Min(min, v);
+         max = Mathf.Max(max, v);
+      }
+      Debug.Log($"{label} -> min = {min:F3}, max = {max:F3}, NaNs={nan}/{vertices.Length}");
+      
    }
 }

@@ -1,18 +1,25 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 public class BiomeMapGenerator
 {
    private BiomeEvaluator evaluator;
+   private List<SO_Biome> biomes;
 
    public BiomeMapGenerator(List<SO_Biome> biomes)
    {
+      this.biomes = biomes;
       evaluator = new BiomeEvaluator(biomes);
    }
 
    public SO_Biome[,] GenerateBiomeMap(float[,] heightMap, float[,] temperatureMap, float[,] humidityMap)
    {
+      SO_Biome deepOcean = biomes.First(b=> b.name == "Deep Ocean");
+      
+      float seaLevel = deepOcean.maximumHeight;
+      
       int width = heightMap.GetLength(0);
       int height = heightMap.GetLength(1);
       SO_Biome[,] biomeMap = new SO_Biome[width, height];
@@ -21,12 +28,19 @@ public class BiomeMapGenerator
       {
          for (int x = 0; x < width; x++)
          {
-            biomeMap[x, y] = evaluator.EvaluateBestMatch(
-               heightMap[x, y],
-               temperatureMap[x, y],
-               humidityMap[x, y]);
+            // "Flood fill" everything bellow sea level
+            if(heightMap[x, y] < seaLevel)
+               biomeMap[x, y] = deepOcean;
+            else
+            {
+               biomeMap[x, y] = evaluator.EvaluateBestMatch(
+                  heightMap[x, y],
+                  temperatureMap[x, y],
+                  humidityMap[x, y]);
+            }
          }
       }
+      
 
       return biomeMap;
    }

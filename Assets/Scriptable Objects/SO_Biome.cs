@@ -6,6 +6,8 @@ using UnityEngine;
 [CreateAssetMenu(menuName = "ScriptableObjects/SO_Biome")]
 public class SO_Biome : ScriptableObject
 {
+    public string name;
+    
     [Header("Comparison Values")]
     [Range(0, 1)] public float minimumHeight;
     [Range(0,1 )] public float maximumHeight;

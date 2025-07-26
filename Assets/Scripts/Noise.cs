@@ -250,7 +250,7 @@ public static class Noise
       
       // Create two different noise maps for mixing (domain warping based on Perlin Noise)
       float[,] warpX = GenerateFBMNoiseMap(mapWidth, mapHeight, seed * seed, warpScale, octaves, persistence, lacunarity, offset, normalizeMode);
-      float[,] warpY = GenerateRidgeNoiseMap(mapWidth, mapHeight, seed + seed, warpScale, octaves, persistence, lacunarity, offset, normalizeMode);
+      float[,] warpY = GenerateFBMNoiseMap(mapWidth, mapHeight, seed + seed, warpScale, octaves, persistence, lacunarity, offset, normalizeMode);
       
       // Get the center of the map (chunk)
       float halfWidth = mapWidth * 0.5f;
@@ -269,8 +269,6 @@ public static class Noise
       {
          for (int x = 0; x < mapWidth; x++)
          {
-            
-            
             // 
             float dx = (warpX[x, y] * 2f - 1f) * warpStrength;
             float dy = (warpY[x, y] * 2f - 1f) * warpStrength;

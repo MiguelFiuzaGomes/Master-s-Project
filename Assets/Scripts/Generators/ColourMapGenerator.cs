@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Rendering.Universal;
 
 public class ColourMapGenerator : MonoBehaviour
 {
@@ -27,6 +28,7 @@ public class ColourMapGenerator : MonoBehaviour
                 colourMap[index] = biome != null ? biome.colour : Color.magenta;
             }
         }
+        
         return colourMap;
     }
 }

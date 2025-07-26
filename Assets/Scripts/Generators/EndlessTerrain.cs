@@ -135,7 +135,6 @@ public class EndlessTerrain : MonoBehaviour
         {
             this.detailLevels = detailLevels;
             
-            
             position = coord*size;
             bounds = new Bounds(position, Vector2.one * size);
             
