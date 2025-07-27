@@ -150,7 +150,7 @@ public class EndlessTerrain : MonoBehaviour
             meshObject.transform.parent = parent;
             meshObject.transform.localScale = Vector3.one * scale;
             
-            
+            Vector2 chunkCentre = new Vector2(positionV3.x, positionV3.z);
 
             // Create the LOD meshes
             lodMeshes = new LODMesh[detailLevels.Length];
@@ -162,7 +162,7 @@ public class EndlessTerrain : MonoBehaviour
             SetVisible(false);
 
             // Get map data
-            mapGenerator.RequestMapData(position, OnMapDataReceived);
+            mapGenerator.RequestMapData(chunkCentre, OnMapDataReceived);
         }
 #region Threading
 

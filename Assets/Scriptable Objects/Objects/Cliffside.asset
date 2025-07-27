@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   name: Cliffside
   minimumHeight: 0.7
-  maximumHeight: 0.85
+  maximumHeight: 0.9
   minimumTemperature: 0.2
   maximumTemperature: 0.5
   minimumHumidity: 0

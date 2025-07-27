@@ -22,8 +22,8 @@ public static class MeshGenerator
         int verticesPerLine = (width - 1) / simplificationIncrement + 1;
 
         // Used to center the mesh
-        float topLeftX = (width-1) / -2f;
-        float topLeftZ = (height-1) / 2f;
+        float topLeftX = (width - 1) / -2f;
+        float topLeftZ = (1 - height) / -2f;
         
         MeshData meshData = new MeshData(verticesPerLine, verticesPerLine);
         int vertexIndex = 0;
@@ -34,14 +34,14 @@ public static class MeshGenerator
         {
             for (int x = 0; x < width; x+= simplificationIncrement)
             {
-                meshData.vertices[vertexIndex] = new Vector3(topLeftX + x, heightCurve.Evaluate(heightMap[x,y]) * heightMultiplier, topLeftZ - y);
+                meshData.vertices[vertexIndex] = new Vector3(-topLeftX - x, heightCurve.Evaluate(heightMap[x,y]) * heightMultiplier, topLeftZ - y);
                 
                 meshData.uvs[vertexIndex] = new Vector2(x / (float)width, y / (float)height);
                 
                 if (x < width - 1 && y < height - 1)
                 {
-                    meshData.AddTriangle(vertexIndex, vertexIndex + verticesPerLine + 1, vertexIndex + verticesPerLine);
-                    meshData.AddTriangle(vertexIndex + verticesPerLine + 1, vertexIndex, vertexIndex + 1);
+                    meshData.AddTriangle(vertexIndex, vertexIndex + verticesPerLine, vertexIndex + verticesPerLine + 1);
+                    meshData.AddTriangle(vertexIndex, vertexIndex + verticesPerLine + 1, vertexIndex + 1);
                 }
                 
                 vertexIndex++;

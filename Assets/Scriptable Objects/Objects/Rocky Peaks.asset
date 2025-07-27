@@ -13,8 +13,8 @@ MonoBehaviour:
   m_Name: Rocky Peaks
   m_EditorClassIdentifier: 
   name: Rocky Peaks
-  minimumHeight: 0.85
-  maximumHeight: 0.95
+  minimumHeight: 0.7
+  maximumHeight: 1
   minimumTemperature: 0
   maximumTemperature: 0.2
   minimumHumidity: 0

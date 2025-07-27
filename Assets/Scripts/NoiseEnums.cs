@@ -8,11 +8,13 @@ public enum NoiseType
     FBM,
     Ridge,
     DomainWarping,
+    
     //Voronoi
 }
 
 public enum NormalizeMode
 {
     Local,
-    Global
+    Global,
+    None
 }

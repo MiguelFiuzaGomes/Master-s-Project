@@ -4,10 +4,6 @@ using System.Linq;
 using UnityEngine;
 using System.Threading;
 using Structs;
-using Unity.PlasticSCM.Editor.WebApi;
-using Unity.VisualScripting;
-using UnityEditor;
-using UnityEngine.Serialization;
 
 public class MapGenerator : MonoBehaviour
 {
@@ -22,6 +18,15 @@ public class MapGenerator : MonoBehaviour
       //Voronoi,
    }
 
+   // What noise to draw in Noise DrawMode
+   public enum DrawNoiseType
+   {
+      Height,
+      Temperature,
+      Humidity,
+      Ridges,
+   }
+
    // Enum for choosing which type of noise is used for creating terrain
 
    [Header("Testing")] 
@@ -30,13 +35,15 @@ public class MapGenerator : MonoBehaviour
    
    [Header("Draw Mode")]
    public DrawMode drawMode;
+   public DrawNoiseType drawNoiseType;
    
    [Header("Map Settings")]
    public const int mapChunkSize = 241;
    public int editorPreviewLOD;
    public float drawHeightMultiplier;
    public NormalizeMode normalizeMode;
-   [Range(0,1)]public float ridgesIntensity;
+   [Range(1, 8), Tooltip("How many times the estimation size (256) is multiplied.")] public int estimationMultiplier;
+   private int estimationSize = 256;
    
    [Header("Height Map Settings")]
    public NoiseSettings HeightSettings;
@@ -55,9 +62,13 @@ public class MapGenerator : MonoBehaviour
    [Range(0,1)]public float humidityWeight;
    public AnimationCurve humidityCurve;
    
-   [Header("Domain Warping")] 
-   public int warpScale;
-   public float warpStrength;
+   // Hidden from the viewer
+   // Used for lifting the hills
+   [Header("Ridge Map Settings")] 
+   [Range(0,1)]public float ridgesIntensity;
+   [HideInInspector] public NoiseSettings RidgeSettings;
+   [HideInInspector] public AnimationCurve ridgesCurve;
+   
    
    private Vector2Int[,] closestSites;
    private Vector2Int[,] secondClosestSites;
@@ -83,6 +94,25 @@ public class MapGenerator : MonoBehaviour
       sortedBiomes = biomes
          .OrderBy(b => b.minimumHeight)
          .ToList();
+
+      estimationSize *= estimationMultiplier;
+      
+      // Calculate Padding used for domain warping normalization 
+      HeightSettings.padding = Mathf.CeilToInt(HeightSettings.warpStrength / HeightSettings.warpScale) + 2;
+      TemperatureSettings.padding = Mathf.CeilToInt(TemperatureSettings.warpStrength / TemperatureSettings.warpScale) + 2;
+      HumiditySettings.padding = Mathf.CeilToInt(HumiditySettings.warpStrength / HumiditySettings.warpScale) + 2;
+
+      // Attemp to get bounds for each noiseMap
+      (HeightSettings.minVal, HeightSettings.maxVal) = NoiseMapGenerator.EstimateNoiseRange(HeightSettings, estimationSize, estimationSize);
+      (TemperatureSettings.minVal, TemperatureSettings.maxVal) = NoiseMapGenerator.EstimateNoiseRange(TemperatureSettings, estimationSize, estimationSize);
+      (HumiditySettings.minVal, HumiditySettings.maxVal) = NoiseMapGenerator.EstimateNoiseRange(HumiditySettings, estimationSize, estimationSize);
+      
+      // RidgesMap
+      // Used for detailing height map
+      // Inherits the values from HeightSettings
+      RidgeSettings = HeightSettings;
+      RidgeSettings.noiseType = NoiseType.Ridge;
+      ridgesCurve = heightCurve;
    }
 
    // Testing purposes for in editor
@@ -93,7 +123,24 @@ public class MapGenerator : MonoBehaviour
 
       // Check which drawMode is selected and apply it to either a plane or a mesh
       if (drawMode == DrawMode.Noise)
-         mapDisplay.DrawTexture(TextureGenerator.TextureFromHeightMap(mapData.heightMap));
+      {
+         switch (drawNoiseType)
+         {
+            case DrawNoiseType.Height:
+               mapDisplay.DrawTexture(TextureGenerator.TextureFromHeightMap(mapData.heightMap));
+               break;
+            case DrawNoiseType.Humidity:
+               mapDisplay.DrawTexture(TextureGenerator.TextureFromHeightMap(mapData.humidityMap));
+               break;
+            case DrawNoiseType.Temperature:
+               mapDisplay.DrawTexture(TextureGenerator.TextureFromHeightMap(mapData.temperatureMap));
+               break;
+            case DrawNoiseType.Ridges:
+               mapDisplay.DrawTexture(TextureGenerator.TextureFromHeightMap(mapData.ridgesMap));
+               break;
+         }
+
+      }
       else if (drawMode == DrawMode.ColourMap)
          mapDisplay.DrawTexture(TextureGenerator.TextureFromColourMap(mapData.colourMap, mapChunkSize, mapChunkSize));
       else if (drawMode == DrawMode.DrawMesh)
@@ -210,17 +257,13 @@ public class MapGenerator : MonoBehaviour
       float[,] rawHeightMap = NoiseMapGenerator.GenerateNoiseMap(HeightSettings, centre, normalizeMode, mapChunkSize, mapChunkSize);
       float[,] rawTemperatureMap = NoiseMapGenerator.GenerateNoiseMap(TemperatureSettings, centre, normalizeMode, mapChunkSize, mapChunkSize);
       float[,] rawHumidityMap = NoiseMapGenerator.GenerateNoiseMap(HumiditySettings, centre, normalizeMode, mapChunkSize, mapChunkSize);
+      float[,] rawRidgesMap = NoiseMapGenerator.GenerateNoiseMap(RidgeSettings, centre, normalizeMode, mapChunkSize, mapChunkSize);
       
       // Create final noisemaps
       float[,] heightMap = new float[mapChunkSize, mapChunkSize];
       float[,] temperatureMap = new float[mapChunkSize, mapChunkSize];
       float[,] humidityMap = new float[mapChunkSize, mapChunkSize];
-      
-      // Ridges noise map to get higher elevation
-      NoiseSettings ridgeNoiseSettings = HeightSettings;
-      ridgeNoiseSettings.noiseType = NoiseType.Ridge;
-      
-      float[,] rawridgesMap = NoiseMapGenerator.GenerateNoiseMap(ridgeNoiseSettings, centre, normalizeMode, mapChunkSize, mapChunkSize);
+      float[,] ridgesMap = new float[mapChunkSize, mapChunkSize];
       
       // Clamp curves to [0,1]
       heightCurve.preWrapMode = WrapMode.Clamp;
@@ -229,8 +272,9 @@ public class MapGenerator : MonoBehaviour
       temperatureCurve.postWrapMode = WrapMode.Clamp;
       humidityCurve.preWrapMode = WrapMode.Clamp;
       humidityCurve.postWrapMode = WrapMode.Clamp;
-      
-      
+      ridgesCurve.preWrapMode = WrapMode.Clamp;
+      ridgesCurve.postWrapMode = WrapMode.Clamp;
+
       // Evaluate each noiseMap with their specific curve
       for (int y = 0; y < mapChunkSize; y++)
       {
@@ -240,10 +284,9 @@ public class MapGenerator : MonoBehaviour
             // clamp inputs
             float rawHeight = rawHeightMap[x, y];
             if(!float.IsFinite(rawHeight)) rawHeight = 0;
-            float ridge = Mathf.Clamp01(rawridgesMap[x, y]);
-            if(!float.IsFinite(ridge)) ridge = 0;
             
-            float height = Mathf.Clamp01(rawHeight + ridge * ridgesIntensity);
+            float ridge = rawRidgesMap[x, y];
+            if(!float.IsFinite(ridge)) ridge = 0;
             
             float temperature = Mathf.Clamp01(rawTemperatureMap[x, y]); 
             if(!float.IsFinite(temperature)) temperature = 0;
@@ -254,18 +297,25 @@ public class MapGenerator : MonoBehaviour
             // clamp the evaluated result 
             // Animation Curves can "overshoot" their values even when clamped in [0,1]
             // Safeguard against NaNs and Infinites
-            float heightEvalute = heightCurve.Evaluate(height);
-            if(!float.IsFinite(heightEvalute)) heightEvalute = 0;
+            
+            float ridgesEvaluate = ridgesCurve.Evaluate(rawRidgesMap[x, y]) * ridgesIntensity;
+            if(!float.IsFinite(ridgesEvaluate)) ridgesEvaluate = 0;
+            
+            float height = rawHeight + ridge * ridgesIntensity;
+            var heightEvaluate = Mathf.SmoothStep(0f, 1f, height);
+            
+            if(!float.IsFinite(heightEvaluate)) heightEvaluate = 0;
             float temperatureEvaluate = temperatureCurve.Evaluate(temperature);
             if(!float.IsFinite(temperatureEvaluate)) temperatureEvaluate = 0;
             float humidityEvaluate = humidityCurve.Evaluate(humidity);
             if(!float.IsFinite(humidityEvaluate)) humidityEvaluate = 0;
             
             // Pass the clamped value to the final maps
-            heightMap[x, y] = Mathf.Clamp01(heightEvalute);
+            heightMap[x, y] = heightEvaluate;
             temperatureMap[x, y] = Mathf.Clamp01(temperatureEvaluate);
             humidityMap[x, y] = Mathf.Clamp01(humidityEvaluate);
-
+            ridgesMap[x, y] = Mathf.Clamp01(ridgesEvaluate);
+            
          }
       }
 
@@ -287,12 +337,10 @@ public class MapGenerator : MonoBehaviour
       // Prune small islands so there isn't single tile biomes
       biomeMap = BiomePost.PruneTinyRegions(biomeMap, 6);
       
-      heightMap = BiomePost.ReapplyHeightByBiome(heightMap, biomeMap);
-      
       // Generate colour based on the best biomes
       colourMap = ColourMapGenerator.GenerateColourMap(biomeMap);
       
-      return new MapData(heightMap, colourMap, temperatureMap, humidityMap);
+      return new MapData(heightMap, colourMap, temperatureMap, humidityMap, ridgesMap);
    }
    
    void Update()
