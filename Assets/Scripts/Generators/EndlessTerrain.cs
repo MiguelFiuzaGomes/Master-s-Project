@@ -86,14 +86,14 @@ public class EndlessTerrain : MonoBehaviour
         
         // Get the viewers current chunk coordinate
         int currentChunkCoordX = Mathf.RoundToInt(viewerPosition.x / chunkSize);
-        int currentChunkCoordy = Mathf.RoundToInt(viewerPosition.y / chunkSize);
+        int currentChunkCoordY = Mathf.RoundToInt(viewerPosition.y / chunkSize);
 
         // Loop through the visible chunks
         for (int yOffset = -chunksInViewDistance; yOffset < chunksInViewDistance; yOffset++)
         {
             for (int xOffset = -chunksInViewDistance; xOffset < chunksInViewDistance; xOffset++)
             {
-                Vector2 viewedChunkCoord = new Vector2(currentChunkCoordX + xOffset, currentChunkCoordy + yOffset);
+                Vector2 viewedChunkCoord = new Vector2(currentChunkCoordX - xOffset, currentChunkCoordY - yOffset);
 
                 // update the visible terrain
                 if (terrainChunkDictionary.ContainsKey(viewedChunkCoord))

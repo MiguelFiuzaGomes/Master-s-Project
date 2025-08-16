@@ -13,6 +13,7 @@ public class MapGenerator : MonoBehaviour
       Noise,
       ColourMap,
       DrawMesh,
+      DrawUntexturedMesh,
       Temperature,
       Humidity,
       //Voronoi,
@@ -130,10 +131,10 @@ public class MapGenerator : MonoBehaviour
                mapDisplay.DrawTexture(TextureGenerator.TextureFromHeightMap(mapData.heightMap));
                break;
             case DrawNoiseType.Humidity:
-               mapDisplay.DrawTexture(TextureGenerator.TextureFromHeightMap(mapData.humidityMap));
+               mapDisplay.DrawTexture(TextureGenerator.TextureFromHumidity(mapData.humidityMap));
                break;
             case DrawNoiseType.Temperature:
-               mapDisplay.DrawTexture(TextureGenerator.TextureFromHeightMap(mapData.temperatureMap));
+               mapDisplay.DrawTexture(TextureGenerator.TextureFromTemperature(mapData.temperatureMap));
                break;
             case DrawNoiseType.Ridges:
                mapDisplay.DrawTexture(TextureGenerator.TextureFromHeightMap(mapData.ridgesMap));
@@ -144,11 +145,13 @@ public class MapGenerator : MonoBehaviour
       else if (drawMode == DrawMode.ColourMap)
          mapDisplay.DrawTexture(TextureGenerator.TextureFromColourMap(mapData.colourMap, mapChunkSize, mapChunkSize));
       else if (drawMode == DrawMode.DrawMesh)
-         mapDisplay.DrawMesh(MeshGenerator.GenerateTerrainMesh(mapData.heightMap, drawHeightMultiplier, heightCurve, editorPreviewLOD), TextureGenerator.TextureFromColourMap(mapData.colourMap, mapChunkSize, mapChunkSize));
+         mapDisplay.DrawMesh(MeshGenerator.GenerateTerrainMesh(mapData.heightMap, drawHeightMultiplier, heightCurve, editorPreviewLOD), TextureGenerator.TextureFromColourMap(mapData.colourMap, mapChunkSize, mapChunkSize), TextureGenerator.TextureFromHeightMap(mapData.heightMap));
+      else if(drawMode == DrawMode.DrawUntexturedMesh)
+         mapDisplay.DrawMesh(MeshGenerator.GenerateTerrainMesh(mapData.heightMap, drawHeightMultiplier, heightCurve,editorPreviewLOD), TextureGenerator.TextureFromHeightMap(mapData.heightMap), TextureGenerator.TextureFromHeightMap(mapData.heightMap));
       else if (drawMode == DrawMode.Temperature)
-         mapDisplay.DrawMesh(MeshGenerator.GenerateTerrainMesh(mapData.heightMap, drawHeightMultiplier, heightCurve, editorPreviewLOD), TextureGenerator.TextureFromTemperature(mapData.temperatureMap));
+         mapDisplay.DrawMesh(MeshGenerator.GenerateTerrainMesh(mapData.heightMap, drawHeightMultiplier, heightCurve, editorPreviewLOD), TextureGenerator.TextureFromTemperature(mapData.temperatureMap), TextureGenerator.TextureFromHeightMap(mapData.heightMap));
       else if (drawMode == DrawMode.Humidity)
-         mapDisplay.DrawMesh(MeshGenerator.GenerateTerrainMesh(mapData.heightMap, drawHeightMultiplier, heightCurve, editorPreviewLOD), TextureGenerator.TextureFromHumidity(mapData.humidityMap));
+         mapDisplay.DrawMesh(MeshGenerator.GenerateTerrainMesh(mapData.heightMap, drawHeightMultiplier, heightCurve, editorPreviewLOD), TextureGenerator.TextureFromHumidity(mapData.humidityMap), TextureGenerator.TextureFromHeightMap(mapData.heightMap));
       // else if(drawMode == DrawMode.Voronoi)
       //  mapDisplay.DrawMesh(MeshGenerator.GenerateTerrainMesh(mapData.heightMap, drawHeightMultiplier, heightCurve, editorPreviewLOD),TextureGenerator.TextureFromVoronoi(mapData.heightMap, mapChunkSize, closestSites));
    }
@@ -325,6 +328,10 @@ public class MapGenerator : MonoBehaviour
       // Combine into a biome grid
       SO_Biome[,] biomeMap = biomeMapGenerator.GenerateBiomeMap(heightMap, temperatureMap, humidityMap);
      
+      
+      // Prune small islands so there isn't single tile biomes
+      biomeMap = BiomePost.PruneTinyRegions(biomeMap, 10);
+      
       // Carve beach biomes along the coast
       biomeMap = BeachGenerator.CarveBeach(
           biomeMap, 
@@ -334,8 +341,6 @@ public class MapGenerator : MonoBehaviour
           deepOcean: sortedBiomes.First(b => b.name == "Deep Ocean"));
       
       
-      // Prune small islands so there isn't single tile biomes
-      biomeMap = BiomePost.PruneTinyRegions(biomeMap, 6);
       
       // Generate colour based on the best biomes
       colourMap = ColourMapGenerator.GenerateColourMap(biomeMap);
@@ -447,6 +452,14 @@ public class MapGenerator : MonoBehaviour
          plane.SetActive(false);
          mesh.SetActive(false);
       }
+      
+      // RidgesMap
+      // Used for detailing height map
+      // Inherits the values from HeightSettings
+      RidgeSettings = HeightSettings;
+      RidgeSettings.noiseType = NoiseType.Ridge;
+      ridgesCurve = heightCurve;
+      
    }
 #endif
    

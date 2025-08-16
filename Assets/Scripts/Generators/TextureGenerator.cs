@@ -13,6 +13,7 @@ public static class TextureGenerator
         // colourMap = BoxBlur(colourMap, width, height, 1);
         // colourMap = GaussianBlur(colourMap, width, height, 1);
 
+        
         texture.SetPixels(colourMap);
         texture.Apply();
 

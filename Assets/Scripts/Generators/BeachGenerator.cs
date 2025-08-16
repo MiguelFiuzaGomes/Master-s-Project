@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -20,34 +21,13 @@ public static class BeachGenerator
             {
                 if(biomeMap[x, y] != shallows) continue;
 
-                if ((x > 0 && biomeMap[x - 1, y]==deepOcean) ||
-                    (x < width - 1 && biomeMap[x + 1, y]==deepOcean) ||
-                    (y > 0 && biomeMap[x, y - 1]==deepOcean) ||
-                    (y < height - 1 && biomeMap[x, y + 1]==deepOcean))
-                {
-                    shoreline[x, y] = true;
-                }
+               TryCarve(biomeMap, width, height, x-1, y, shallows, deepOcean, beach, ref output);
+               TryCarve(biomeMap, width, height, x+1, y, shallows, deepOcean, beach, ref output);
+               TryCarve(biomeMap, width, height, x, y-1, shallows, deepOcean, beach, ref output);
+               TryCarve(biomeMap, width, height, x, y+1, shallows, deepOcean, beach, ref output);
             }
         }
-
-        for (int y = 0; y < height; y++)
-        {
-            for (int x = 0; x < width; x++)
-            {
-                if (!shoreline[x,y]) continue;
-
-                // 4-neighbor land check
-                if (x > 0   && IsLand(biomeMap[x - 1, y], deepOcean, shallows))
-                    output[x - 1, y] = beach;
-                if (x < width -1 && IsLand(biomeMap[x + 1, y], deepOcean, shallows))
-                    output[x + 1, y] = beach;
-                if (y > 0   && IsLand(biomeMap[x, y - 1], deepOcean, shallows))
-                    output[x, y - 1] = beach;
-                if (y < height - 1 && IsLand(biomeMap[x, y + 1], deepOcean, shallows))
-                    output[x, y + 1] = beach;
-            }
-        }
-
+        
         return output;
     }
     
@@ -55,4 +35,15 @@ public static class BeachGenerator
     // returns true if this biome is not a water biome
     private static bool IsLand(SO_Biome biome, SO_Biome deepOcean, SO_Biome shallows)
     => biome != deepOcean && biome != shallows;
+
+    private static void TryCarve(SO_Biome[,] biomeMap, int width, int height, int cx, int cy, SO_Biome shallows, SO_Biome deepOcean, SO_Biome beach, ref SO_Biome[,] output)
+    {
+        if(cx < 0 || cx >= width || cy < 0 || cy >= height) return;
+        SO_Biome neighbour = biomeMap[cx, cy];
+        
+        // only turn true "land" into beach
+        if(neighbour!= shallows && neighbour != deepOcean)
+            output[cx, cy] = beach;
+            
+    }
 }

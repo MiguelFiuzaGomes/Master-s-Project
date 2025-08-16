@@ -17,9 +17,10 @@ public class MapDisplay : MonoBehaviour
         textureRenderer.transform.localScale = new Vector3(texture.width, 1, texture.height);
     }
 
-    public void DrawMesh(MeshData meshData, Texture2D texture)
+    public void DrawMesh(MeshData meshData, Texture2D texture, Texture2D heightMap)
     {
         meshRenderer.sharedMaterial.SetTexture("_Texture2D", texture);
+        meshRenderer.sharedMaterial.SetTexture("_HeightMap", heightMap);
         meshFilter.sharedMesh = meshData.CreateMesh();
         meshRenderer.sharedMaterial.mainTexture = texture;
     }
