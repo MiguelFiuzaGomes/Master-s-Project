@@ -13,8 +13,6 @@ public static class BeachGenerator
         SO_Biome[,] output = biomeMap.Clone() as SO_Biome[,];
         
         // Find all Shallows cells that touch deep ocean
-        bool[,] shoreline = new bool[width, height];
-        
         for (int y = 0; y < height; y++)
         {
             for (int x = 0; x < width; x++)
@@ -32,10 +30,6 @@ public static class BeachGenerator
     }
     
     // Helper function
-    // returns true if this biome is not a water biome
-    private static bool IsLand(SO_Biome biome, SO_Biome deepOcean, SO_Biome shallows)
-    => biome != deepOcean && biome != shallows;
-
     private static void TryCarve(SO_Biome[,] biomeMap, int width, int height, int cx, int cy, SO_Biome shallows, SO_Biome deepOcean, SO_Biome beach, ref SO_Biome[,] output)
     {
         if(cx < 0 || cx >= width || cy < 0 || cy >= height) return;

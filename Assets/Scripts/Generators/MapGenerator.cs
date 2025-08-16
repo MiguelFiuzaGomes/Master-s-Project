@@ -51,6 +51,13 @@ public class MapGenerator : MonoBehaviour
    [Range(0,1)]public float heightWeight;
    public AnimationCurve heightCurve;
    
+   // Hidden from the viewer
+   // Used for lifting the hills
+   [Header("Ridge Map Settings")] 
+   [Range(0,1)]public float ridgesIntensity;
+   [HideInInspector] public NoiseSettings RidgeSettings;
+   [HideInInspector] public AnimationCurve ridgesCurve;
+   
    [Header("Temperature Map Settings")]
    public NoiseSettings TemperatureSettings;
    public AnimationCurve temperatureCurve;
@@ -62,14 +69,9 @@ public class MapGenerator : MonoBehaviour
    public NoiseSettings HumiditySettings;
    [Range(0,1)]public float humidityWeight;
    public AnimationCurve humidityCurve;
-   
-   // Hidden from the viewer
-   // Used for lifting the hills
-   [Header("Ridge Map Settings")] 
-   [Range(0,1)]public float ridgesIntensity;
-   [HideInInspector] public NoiseSettings RidgeSettings;
-   [HideInInspector] public AnimationCurve ridgesCurve;
-   
+
+   [Header("Tiny Region Pruning")] 
+   [Range(1, 15)]public int minimumSameNeighbours;
    
    private Vector2Int[,] closestSites;
    private Vector2Int[,] secondClosestSites;
@@ -160,100 +162,6 @@ public class MapGenerator : MonoBehaviour
    
    private MapData GenerateMapData(Vector2 centre)
    {
-      // Create new noise maps
-      
-      // Populate heightMap based on the type of noise chosen
-     // float[,] heightMap = NoiseMapGenerator.GenerateNoiseMap()
-      
-//       
-//       float[,] heightMap = GenerateNoiseMap(heightNoiseType, heightSeed, noiseScale, Vector2.zero);
-//       float[,] temperatureMap = GenerateNoiseMap(temperatureNoiseType, temperatureSeed, noiseScale, Vector2.zero);
-//       float[,] humidityMap = GenerateNoiseMap(humidityNoiseType, humiditySeed, noiseScale, Vector2.zero);
-//       
-//       float[,] ridgesMap = Noise.GenerateRidgeNoiseMap(mapChunkSize, mapChunkSize, heightSeed, noiseScale, octaves, persistence, lacunarity, centre + offset, normalizeMode);
-//       
-//       for (int y = 0; y < heightMap.GetLength(0); y++)
-//       {
-//          for (int x = 0; x < heightMap.GetLength(1); x++)
-//          {
-//             ridgesMap[x, y] *= ridgesIntensity;
-//             heightMap[x, y] = Mathf.Lerp(heightMap[x, y], ridgesMap[x, y], 0.1f);
-//             
-//          }
-//       }
-//
-//       // Re-normalize height map 
-//       heightMap = Noise.Normalize(heightMap);
-//
-//       /* Original Biome Logic
-//       
-//       Color[] colourMap = new Color[mapChunkSize * mapChunkSize];
-//       
-//       for (int y = 0; y < mapChunkSize; y++)
-//       {
-//          for (int x = 0; x < mapChunkSize; x++)
-//          {
-//             // Default values
-//             float bestDist2 = float.MaxValue;
-//             Color bestColour = Color.magenta;
-//
-//             // Get the value of each of the noise maps in the current position per chunk
-//             float currenHeight = heightMap[x, y];
-//             float currentTemperature = temperatureMap[x, y];
-//             float currentHumidity = humidityMap[x, y];
-//
-//             foreach (SO_Biome biome in sortedBiomes)
-//             {
-//                float d2 = Dist2ToRange(currentHumidity, biome.minimumHumidity, biome.maximumHumidity) + humidityWeight;
-//                d2 *= humidityCurve.Evaluate(d2); // sample humidity
-//                d2 += Dist2ToRange(currentTemperature, biome.minimumTemperature, biome.maximumTemperature) * temperatureWeight + temperatureCurve.Evaluate(d2); // sample temperature
-//                
-//                // sample height with a multiplier as the height is the most decisive factor
-//                // without this we could get high biomes spawning in low areas
-//                d2 += Dist2ToRange(currenHeight, biome.minimumHeight, biome.maximumHeight) * heightWeight + heightCurve.Evaluate(d2); 
-//                
-//                // remove the bias for each biome
-//                d2 -= biome.weightBias;
-//                
-//                // check which biome is most suited.
-//                if(d2 < bestDist2)
-//                {
-//                   bestDist2 = d2;
-//                   bestColour = biome.colour;
-//                }
-//             }
-//
-//             colourMap[y * mapChunkSize + x] = bestColour;
-//          }
-//       }
-//       */
-//
-//
-//       SO_Biome[,] biomeMap = new SO_Biome[mapChunkSize,mapChunkSize];
-//       
-//       // Evaluate biomes
-//       BiomeEvaluator biomeEvaluator = new BiomeEvaluator(sortedBiomes);
-//
-//       for (int y = 0; y < mapChunkSize; y++)
-//       {
-//          for (int x = 0; x < mapChunkSize; x++)
-//          {
-//             float height = heightMap[x, y];
-//             float temperature = temperatureMap[x, y];
-//             float humidity = humidityMap[x, y];
-//
-//             SO_Biome selectedBiome = biomeEvaluator.Evaluate(height, temperature, humidity);
-//             biomeMap[x, y] = selectedBiome;
-//
-//          }
-//       }
-//       
-//       
-//       // create color based on the suitability calculated on the previous passes
-//       Color[] colourMap = new Color[mapChunkSize * mapChunkSize];
-//       for(int y = 0; y < mapChunkSize; y++)
-//          for(int x = 0; x < mapChunkSize; x++)
-//             colourMap[y * mapChunkSize + x] = biomeMap[x, y].colour;
       biomeMapGenerator = new BiomeMapGenerator(sortedBiomes);
       
       // Create noise maps and populate them
@@ -330,7 +238,7 @@ public class MapGenerator : MonoBehaviour
      
       
       // Prune small islands so there isn't single tile biomes
-      biomeMap = BiomePost.PruneTinyRegions(biomeMap, 10);
+      biomeMap = BiomePost.PruneTinyRegions(biomeMap, minimumSameNeighbours);
       
       // Carve beach biomes along the coast
       biomeMap = BeachGenerator.CarveBeach(

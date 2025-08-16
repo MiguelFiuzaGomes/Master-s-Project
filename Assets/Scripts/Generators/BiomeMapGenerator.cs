@@ -17,8 +17,10 @@ public class BiomeMapGenerator
    public SO_Biome[,] GenerateBiomeMap(float[,] heightMap, float[,] temperatureMap, float[,] humidityMap)
    {
       SO_Biome deepOcean = biomes.First(b=> b.name == "Deep Ocean");
-      
-      float seaLevel = deepOcean.maximumHeight;
+      SO_Biome shallows = biomes.First(b=> b.name == "Shallows");
+
+      float seaLevel = shallows.maximumHeight;
+      float deepSeaLevel = deepOcean.maximumHeight;
       
       int width = heightMap.GetLength(0);
       int height = heightMap.GetLength(1);
@@ -30,6 +32,9 @@ public class BiomeMapGenerator
          {
             // "Flood fill" everything bellow sea level
             if(heightMap[x, y] < seaLevel)
+               biomeMap[x, y] = shallows;
+            
+            if(heightMap[x, y] < deepSeaLevel)
                biomeMap[x, y] = deepOcean;
             else
             {
