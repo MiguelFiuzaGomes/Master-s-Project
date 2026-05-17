@@ -65,7 +65,7 @@ The project focuses on balancing procedural diversity, runtime performance, and 
 
 Portfolio project page:
 
-[Portfolio Link Coming Soon]
+https://miguelfiuzagomes.github.io/portfolio/
 
 ---
 
